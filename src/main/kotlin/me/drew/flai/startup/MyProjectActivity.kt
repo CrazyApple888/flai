@@ -1,4 +1,4 @@
-package com.github.crazyapple888.flai.startup
+package me.drew.flai.startup
 
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project

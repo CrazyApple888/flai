@@ -1,4 +1,4 @@
-package com.github.crazyapple888.flai.toolWindow
+package me.drew.flai.toolWindow
 
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
@@ -8,8 +8,8 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.content.ContentFactory
-import com.github.crazyapple888.flai.MyBundle
-import com.github.crazyapple888.flai.services.MyProjectService
+import me.drew.flai.MyBundle
+import me.drew.flai.services.MyProjectService
 import javax.swing.JButton
 
 

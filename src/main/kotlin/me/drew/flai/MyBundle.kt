@@ -1,4 +1,4 @@
-package com.github.crazyapple888.flai
+package me.drew.flai
 
 import com.intellij.DynamicBundle
 import org.jetbrains.annotations.NonNls

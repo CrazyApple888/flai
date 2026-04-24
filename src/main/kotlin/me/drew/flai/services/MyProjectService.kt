@@ -1,9 +1,9 @@
-package com.github.crazyapple888.flai.services
+package me.drew.flai.services
 
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
-import com.github.crazyapple888.flai.MyBundle
+import me.drew.flai.MyBundle
 
 @Service(Service.Level.PROJECT)
 class MyProjectService(project: Project) {
