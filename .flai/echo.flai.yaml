@@ -1,0 +1,23 @@
+id: echo
+name: Echo Pipeline
+description: Minimal test — passes input straight to output. No LLM needed.
+entry: start
+
+gates:
+  start:
+    type: input
+    label: "Input"
+    schema:
+      - name: message
+        type: STRING
+        required: true
+
+  out:
+    type: output
+    label: "Output"
+    outputMapping:
+      message: message
+
+edges:
+  - from: start
+    to: out

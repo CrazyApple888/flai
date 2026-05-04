@@ -1,0 +1,36 @@
+id: symbol-search-raw
+name: Symbol Search (No LLM)
+description: Search IDE index by name, output results directly.
+entry: start
+
+gates:
+  start:
+    type: input
+    label: "Input"
+    schema:
+      - name: query
+        type: STRING
+        required: true
+
+  search:
+    type: tool
+    label: "Search IDE Index"
+    tool: ide.searchSymbol
+    inputMapping:
+      query: query
+    outputMapping:
+      symbols: symbols
+      count: count
+
+  out:
+    type: output
+    label: "Results"
+    outputMapping:
+      symbols: symbols
+      count: count
+
+edges:
+  - from: start
+    to: search
+  - from: search
+    to: out

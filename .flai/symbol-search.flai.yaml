@@ -1,0 +1,80 @@
+id: symbol-search
+name: Symbol Search + Explain
+description: Search IDE index for a symbol name, then ask LLM to explain what was found.
+entry: start
+
+gates:
+  start:
+    type: input
+    label: "Input"
+    schema:
+      - name: query
+        type: STRING
+        required: true
+
+  search:
+    type: tool
+    label: "Search IDE Index"
+    tool: ide.searchSymbol
+    inputMapping:
+      query: query
+    outputMapping:
+      symbols: symbols
+      count: count
+
+  decide:
+    type: logic
+    label: "Found anything?"
+    defaultPort: not_found
+    branches:
+      - port: found
+        condition:
+          type: comparison
+          variable: count
+          op: GT
+          value: "0"
+
+  explain:
+    type: llm
+    label: "Explain Symbols"
+    promptTemplate: |
+      The user searched for "{{query}}" in an IntelliJ project and found these results:
+
+      {{symbols}}
+
+      Briefly explain what these files/symbols are and how they relate to the query.
+    inputMapping: {}
+    outputMapping:
+      response: explanation
+    endpoint:
+      url: https://api.anthropic.com/v1/messages
+      credentialId: anthropic-key
+      model: claude-sonnet-4-6
+      params:
+        max_tokens: 1024
+
+  not_found_gate:
+    type: output
+    label: "Nothing Found"
+    outputMapping:
+      explanation: explanation
+
+  out:
+    type: output
+    label: "Result"
+    outputMapping:
+      explanation: explanation
+
+edges:
+  - from: start
+    to: search
+  - from: search
+    to: decide
+  - from: decide
+    fromPort: found
+    to: explain
+  - from: decide
+    fromPort: not_found
+    to: not_found_gate
+  - from: explain
+    to: out

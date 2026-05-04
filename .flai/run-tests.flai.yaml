@@ -1,0 +1,102 @@
+id: run-tests
+name: Run Tests + Summarize
+description: Run Gradle tests and ask LLM to summarize the results.
+entry: start
+
+gates:
+  start:
+    type: input
+    label: "Input"
+    schema:
+      - name: testCommand
+        type: STRING
+        required: false
+        default: "./gradlew test"
+
+  run:
+    type: tool
+    label: "Run Tests"
+    tool: ide.runCommand
+    inputMapping:
+      command: testCommand
+    outputMapping:
+      output: testOutput
+      exitCode: exitCode
+      success: testPassed
+
+  decide:
+    type: logic
+    label: "Tests passed?"
+    defaultPort: failed
+    branches:
+      - port: passed
+        condition:
+          type: comparison
+          variable: testPassed
+          op: EQ
+          value: "true"
+
+  summarize_pass:
+    type: llm
+    label: "Summarize Pass"
+    promptTemplate: |
+      All tests passed. Here is the output:
+
+      ```
+      {{testOutput}}
+      ```
+
+      Write a one-sentence summary of what was tested and confirmed working.
+    inputMapping: {}
+    outputMapping:
+      response: summary
+    endpoint:
+      url: https://api.anthropic.com/v1/messages
+      credentialId: anthropic-key
+      model: claude-haiku-4-5-20251001
+      params:
+        max_tokens: 256
+
+  summarize_fail:
+    type: llm
+    label: "Summarize Failures"
+    promptTemplate: |
+      Tests FAILED. Here is the output:
+
+      ```
+      {{testOutput}}
+      ```
+
+      List the failing tests and the likely root cause for each. Be concise.
+    inputMapping: {}
+    outputMapping:
+      response: summary
+    endpoint:
+      url: https://api.anthropic.com/v1/messages
+      credentialId: anthropic-key
+      model: claude-sonnet-4-6
+      params:
+        max_tokens: 1024
+
+  out:
+    type: output
+    label: "Test Summary"
+    outputMapping:
+      summary: summary
+      testPassed: testPassed
+
+edges:
+  - from: start
+    to: run
+  - from: run
+    to: decide
+  - from: decide
+    fromPort: passed
+    to: summarize_pass
+  - from: decide
+    fromPort: failed
+    to: summarize_fail
+  - from: summarize_pass
+    to: out
+  - from: summarize_fail
+    to: out

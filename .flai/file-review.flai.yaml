@@ -1,0 +1,60 @@
+id: file-review
+name: File Code Review
+description: Read a file from the project and ask LLM to review it.
+entry: start
+
+gates:
+  start:
+    type: input
+    label: "Input"
+    schema:
+      - name: filePath
+        type: STRING
+        required: true
+        default: "src/main/kotlin/me/drew/flai/domain/model/Gate.kt"
+
+  read:
+    type: tool
+    label: "Read File"
+    tool: ide.readFile
+    inputMapping:
+      path: filePath
+    outputMapping:
+      content: fileContent
+
+  review:
+    type: llm
+    label: "LLM Review"
+    promptTemplate: |
+      Review the following Kotlin code. Point out any issues, suggest improvements, and comment on architecture quality.
+
+      File: {{filePath}}
+
+      ```kotlin
+      {{fileContent}}
+      ```
+
+      Be concise — max 10 bullet points.
+    inputMapping: {}
+    outputMapping:
+      response: review
+    endpoint:
+      url: https://api.anthropic.com/v1/messages
+      credentialId: anthropic-key
+      model: claude-sonnet-4-6
+      params:
+        max_tokens: 2048
+
+  out:
+    type: output
+    label: "Review Output"
+    outputMapping:
+      review: review
+
+edges:
+  - from: start
+    to: read
+  - from: read
+    to: review
+  - from: review
+    to: out

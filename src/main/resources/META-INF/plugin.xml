@@ -5,11 +5,41 @@
     <vendor>Andrew Isachenko</vendor>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.yaml</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="me.drew.flai.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="me.drew.flai.startup.MyProjectActivity" />
+        <toolWindow
+            id="FlaiPipelines"
+            displayName="Flai Pipelines"
+            anchor="right"
+            factoryClass="me.drew.flai.ui.toolwindow.PipelineToolWindowFactory"/>
+
+        <projectService
+            serviceImplementation="me.drew.flai.ui.service.FlaiPipelineUiService"/>
+
+        <postStartupActivity
+            implementation="me.drew.flai.startup.FlaiStartupActivity"/>
+
+        <fileType
+            name="Flai Pipeline"
+            implementationClass="me.drew.flai.ui.editor.FlaiYamlFileType"
+            patterns="*.flai.yaml"
+            language="yaml"/>
+
+        <runLineMarkerContributor
+            language="yaml"
+            implementationClass="me.drew.flai.ui.editor.FlaiRunLineMarkerContributor"/>
     </extensions>
+
+    <actions>
+        <action
+            id="me.drew.flai.RunPipelineAction"
+            class="me.drew.flai.ui.actions.RunPipelineAction"
+            text="Run Pipeline"
+            description="Run the selected flai pipeline">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>
