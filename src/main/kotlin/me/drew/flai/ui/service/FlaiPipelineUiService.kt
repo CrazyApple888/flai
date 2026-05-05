@@ -4,6 +4,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import me.drew.flai.domain.model.InputGate
 import me.drew.flai.domain.model.PipelineId
 import me.drew.flai.domain.model.TraceStatus
 import me.drew.flai.domain.service.ExecutionEvent
@@ -17,6 +18,8 @@ import me.drew.flai.infrastructure.tool.IdeToolRegistry
 import me.drew.flai.ui.model.*
 import me.drew.flai.usecase.ListPipelinesUseCase
 import me.drew.flai.usecase.RunPipelineUseCase
+import java.io.File
+import java.nio.file.Path
 
 @Service(Service.Level.PROJECT)
 class FlaiPipelineUiService(private val project: Project) {
@@ -46,6 +49,9 @@ class FlaiPipelineUiService(private val project: Project) {
     private val _pipelines = MutableStateFlow<List<UiPipeline>>(emptyList())
     val pipelines: StateFlow<List<UiPipeline>> = _pipelines.asStateFlow()
 
+    private val _selectedPipeline = MutableStateFlow<UiPipeline?>(null)
+    val selectedPipeline: StateFlow<UiPipeline?> = _selectedPipeline.asStateFlow()
+
     private val _executionState = MutableStateFlow<ExecutionUiState>(ExecutionUiState.Idle)
     val executionState: StateFlow<ExecutionUiState> = _executionState.asStateFlow()
 
@@ -57,18 +63,20 @@ class FlaiPipelineUiService(private val project: Project) {
     fun refresh() {
         serviceScope.launch {
             try {
-                val ids = listUseCase.invoke()
-                val uiPipelines = ids.mapNotNull { id ->
-                    runCatching { toUiPipeline(id) }.getOrNull()
-                }
+                val uiPipelines = loadAllWithPaths()
                 _pipelines.value = uiPipelines
             } catch (_: Exception) {
             }
         }
     }
 
+    fun selectPipeline(pipeline: UiPipeline) {
+        _selectedPipeline.value = pipeline
+    }
+
     fun run(pipeline: UiPipeline, inputs: Map<String, String>) {
         if (_executionState.value is ExecutionUiState.Running) return
+        _selectedPipeline.value = pipeline
         _logRows.value = emptyList()
         _executionState.value = ExecutionUiState.Running
 
@@ -78,6 +86,30 @@ class FlaiPipelineUiService(private val project: Project) {
                     _executionState.value = ExecutionUiState.Failed(e.message ?: "Unknown error")
                 }
                 .collect { event -> handleEvent(event) }
+        }
+    }
+
+    /** Called from gutter action — loads by file path, selects in list, runs with defaults. */
+    fun runFromFile(filePath: String) {
+        serviceScope.launch {
+            // Try to find already-loaded pipeline first
+            var pipeline = _pipelines.value.firstOrNull { it.filePath?.toString() == filePath }
+
+            // Not loaded yet — parse directly from file
+            if (pipeline == null) {
+                pipeline = runCatching { toUiPipelineFromFile(File(filePath)) }.getOrNull()
+            }
+
+            pipeline ?: return@launch
+
+            // Ensure it's in the list
+            if (_pipelines.value.none { it.id == pipeline.id }) {
+                _pipelines.value = _pipelines.value + pipeline
+            }
+
+            run(pipeline, pipeline.inputSpecs
+                .filter { it.defaultValue.isNotEmpty() }
+                .associate { it.key to it.defaultValue })
         }
     }
 
@@ -127,20 +159,25 @@ class FlaiPipelineUiService(private val project: Project) {
         }
     }
 
-    private suspend fun toUiPipeline(id: PipelineId): UiPipeline {
-        val pipeline = repository.load(id)
-        val inputSpecs = pipeline.gates[pipeline.entryGateId]
-            ?.let { gate ->
-                if (gate is me.drew.flai.domain.model.InputGate) {
-                    gate.inputSchema.map { field ->
-                        InputFieldSpec(
-                            key = field.name,
-                            label = field.name,
-                            defaultValue = field.default ?: "",
-                            required = field.required,
-                        )
-                    }
-                } else emptyList()
+    private suspend fun loadAllWithPaths(): List<UiPipeline> = withContext(Dispatchers.IO) {
+        val dir = project.basePath?.let { File(it, ".flai") } ?: return@withContext emptyList()
+        if (!dir.exists()) return@withContext emptyList()
+        dir.listFiles { f -> f.name.endsWith(".flai.yaml") || f.name.endsWith(".yaml") }
+            ?.mapNotNull { file -> runCatching { toUiPipelineFromFile(file) }.getOrNull() }
+            ?: emptyList()
+    }
+
+    private fun toUiPipelineFromFile(file: File): UiPipeline {
+        val pipeline = parser.parse(file.readText())
+        val inputSpecs = (pipeline.gates[pipeline.entryGateId] as? InputGate)
+            ?.inputSchema
+            ?.map { field ->
+                InputFieldSpec(
+                    key = field.name,
+                    label = field.name,
+                    defaultValue = field.default ?: "",
+                    required = field.required,
+                )
             } ?: emptyList()
 
         return UiPipeline(
@@ -148,7 +185,7 @@ class FlaiPipelineUiService(private val project: Project) {
             name = pipeline.name,
             description = pipeline.description,
             gateCount = pipeline.gates.size,
-            filePath = null,
+            filePath = file.toPath(),
             inputSpecs = inputSpecs,
         )
     }

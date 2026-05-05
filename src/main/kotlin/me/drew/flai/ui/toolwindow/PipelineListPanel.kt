@@ -25,12 +25,18 @@ class PipelineListPanel(
 
     private val listModel = CollectionListModel<UiPipeline>()
     private val scope = disposable.coroutineScope()
+    private var suppressSelectionEvent = false
 
     private val jbList = JBList(listModel).apply {
         cellRenderer = PipelineCellRenderer()
         selectionMode = ListSelectionModel.SINGLE_SELECTION
         addListSelectionListener { e ->
-            if (!e.valueIsAdjusting) selectedValue?.let(onSelect)
+            if (!e.valueIsAdjusting && !suppressSelectionEvent) {
+                selectedValue?.let { pipeline ->
+                    service.selectPipeline(pipeline)
+                    onSelect(pipeline)
+                }
+            }
         }
     }
 
@@ -45,10 +51,34 @@ class PipelineListPanel(
         add(toolbar, BorderLayout.NORTH)
         add(JBScrollPane(jbList), BorderLayout.CENTER)
 
+        // Update list when pipelines change
         scope.launch {
             service.pipelines.onEach { pipelines ->
                 withContext(Dispatchers.Main) {
+                    suppressSelectionEvent = true
+                    val previouslySelected = service.selectedPipeline.value?.id
                     listModel.replaceAll(pipelines)
+                    // Restore selection after list update
+                    val idx = pipelines.indexOfFirst { it.id == previouslySelected }
+                    if (idx >= 0) jbList.selectedIndex = idx
+                    suppressSelectionEvent = false
+                }
+            }.collect {}
+        }
+
+        // Sync external selection changes (e.g. from gutter action)
+        scope.launch {
+            service.selectedPipeline.onEach { selected ->
+                withContext(Dispatchers.Main) {
+                    if (selected == null) return@withContext
+                    val idx = listModel.items.indexOfFirst { it.id == selected.id }
+                    if (idx >= 0 && jbList.selectedIndex != idx) {
+                        suppressSelectionEvent = true
+                        jbList.selectedIndex = idx
+                        jbList.ensureIndexIsVisible(idx)
+                        suppressSelectionEvent = false
+                        onSelect(selected)
+                    }
                 }
             }.collect {}
         }

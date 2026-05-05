@@ -22,14 +22,9 @@ class RunPipelineAction : AnAction("Run Pipeline", "Run the selected flai pipeli
         val file = e.getData(CommonDataKeys.VIRTUAL_FILE) ?: return
         val service = project.getService(FlaiPipelineUiService::class.java) ?: return
 
-        val pipeline = service.pipelines.value.firstOrNull { it.filePath?.toString() == file.path }
-            ?: run {
-                // Pipeline not yet in list — trigger a refresh then try again
-                service.refresh()
-                return
-            }
-
-        ToolWindowManager.getInstance(project).getToolWindow("FlaiPipelines")?.activate(null)
-        service.run(pipeline, emptyMap())
+        // Always open the tool window first
+        ToolWindowManager.getInstance(project).getToolWindow("FlaiPipelines")?.activate {
+            service.runFromFile(file.path)
+        }
     }
 }
