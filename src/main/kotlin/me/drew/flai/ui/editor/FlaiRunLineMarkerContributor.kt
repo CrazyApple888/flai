@@ -10,9 +10,12 @@ class FlaiRunLineMarkerContributor : RunLineMarkerContributor() {
         val file = element.containingFile ?: return null
         if (!file.name.endsWith(".flai.yaml")) return null
         // Only leaf elements (no children) and only the absolute first one
-        if (element.firstChild != null) return null
-        if (PsiTreeUtil.prevLeaf(element) != null) return null
-        @Suppress("DEPRECATION")
-        return Info(FlaiIcons.GUTTER_RUN, null, RunPipelineAction())
+        if (element.firstChild != null) {
+            return null
+        }
+        if (PsiTreeUtil.prevLeaf(element) != null) {
+            return null
+        }
+        return Info(FlaiIcons.GUTTER_RUN, arrayOf(RunPipelineAction()))
     }
 }
