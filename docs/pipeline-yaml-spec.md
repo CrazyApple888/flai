@@ -161,12 +161,81 @@ edges:
 
 ---
 
+### `read-file`
+
+Reads the text content of a file on disk and stores it in the execution context. Supports project-root-relative and absolute paths. No scope restriction — absolute paths outside the project root are accepted.
+
+```yaml
+read-source:
+  type: read-file
+  label: Read Source File
+  path: "{{file_path}}"        # literal or {{variable}} template
+  outputKey: file_content      # optional, default "content"
+```
+
+**Fields:**
+
+| field | required | default | notes |
+|-------|----------|---------|-------|
+| `path` | yes | — | Project-root-relative or absolute path to the file. Supports `{{variable}}` template syntax. |
+| `outputKey` | no | `content` | Context key under which the file content is stored. |
+| `label` | no | gate id | Display label in UI and logs. |
+
+**Behavior:**
+- If `path` contains `{{variable}}` references, each variable must be present in the context; missing variables cause an immediate failure.
+- If the rendered path is blank, the gate fails.
+- Relative paths are resolved against the project root.
+- Binary files (NUL byte detected in first 8 KB) cause a failure.
+- On success, the file's UTF-8 text content is stored in the context under `outputKey`.
+
+---
+
+### `write-file`
+
+Writes a context variable's string value to a file on disk. The destination path must resolve within the project root subtree.
+
+```yaml
+save-result:
+  type: write-file
+  label: Save Review
+  path: "output/{{run_id}}/review.md"   # literal or {{variable}} template
+  contentKey: review_text                # context variable to write
+  mode: overwrite                        # optional, default "overwrite"
+```
+
+**Fields:**
+
+| field | required | default | notes |
+|-------|----------|---------|-------|
+| `path` | yes | — | Destination path (relative to project root or absolute within it). Supports `{{variable}}` template syntax. |
+| `contentKey` | yes | — | Name of the context variable whose value is written. Value must be a `String`. |
+| `mode` | no | `overwrite` | Write mode: `overwrite`, `append`, or `fail-if-exists`. |
+| `label` | no | gate id | Display label in UI and logs. |
+
+**Behavior:**
+- If `path` contains `{{variable}}` references, each variable must be present in the context; missing variables cause an immediate failure.
+- If the rendered path is blank, the gate fails.
+- The resolved path must fall within the project root subtree; paths that escape via `../` or absolute references outside the root cause a failure.
+- If the value stored under `contentKey` is not a `String`, the gate fails with an error identifying the key and actual type.
+- Parent directories are created automatically if they do not exist.
+- On success, the resolved absolute path of the written file is stored in the context under the key `writtenPath`.
+
+**Write modes:**
+
+| mode | behavior on existing file | behavior on new file |
+|------|--------------------------|----------------------|
+| `overwrite` (default) | Replaces entire content | Creates file |
+| `append` | Adds content to end | Creates file |
+| `fail-if-exists` | Fails with error | Creates file |
+
+---
+
 ### `tool`
 
 Invokes a registered IDE tool by name. Inputs resolved from context via `inputMapping`; outputs written back via `outputMapping`.
 
 ```yaml
-read-file:
+read-file-tool:
   type: tool
   label: Read Source File
   tool: ide.readFile            # tool name (must be registered)
@@ -250,5 +319,71 @@ edges:
   - from: read
     to: review
   - from: review
+    to: result
+```
+
+## Example: read-file and write-file gates
+
+```yaml
+id: file-review-pipeline
+name: File Review with Save
+description: Read a source file, ask Claude to review it, and save the review
+entry: inputs
+
+gates:
+  inputs:
+    type: input
+    label: Inputs
+    schema:
+      - name: file_path
+        type: STRING
+        required: true
+      - name: run_id
+        type: STRING
+        required: true
+
+  read-source:
+    type: read-file
+    label: Read Source File
+    path: "{{file_path}}"
+    outputKey: file_content
+
+  review:
+    type: llm
+    label: Review Code
+    promptTemplate: |
+      Review this code for issues, style, and improvements:
+
+      ```
+      {{file_content}}
+      ```
+    outputMapping:
+      response: review_text
+    endpoint:
+      url: https://api.anthropic.com/v1/messages
+      credentialId: anthropic-key
+      model: claude-sonnet-4-6
+
+  save-result:
+    type: write-file
+    label: Save Review
+    path: "output/{{run_id}}/review.md"
+    contentKey: review_text
+    mode: overwrite
+
+  result:
+    type: output
+    label: Done
+    outputMapping:
+      savedTo: writtenPath
+
+edges:
+  - from: inputs
+    to: read-source
+  - from: read-source
+    to: review
+  - from: review
+    to: save-result
+  - from: save-result
     to: result
 ```

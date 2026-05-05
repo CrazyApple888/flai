@@ -76,7 +76,10 @@ class CoroutinePipelineExecutor(private val executors: List<GateExecutor<*>>) : 
             is LlmGate -> gate.outputMapping
             is ToolGate -> gate.outputMapping
             is OutputGate -> gate.outputMapping
-            is InputGate, is LogicGate -> emptyMap()
+            is InputGate,
+            is LogicGate,
+            is ReadFileGate,
+            is WriteFileGate -> emptyMap()
         }
         context.applyOutputs(outputMapping, outputs)
         val entry = TraceEntry(gate.id, gate.label, status, message, duration)

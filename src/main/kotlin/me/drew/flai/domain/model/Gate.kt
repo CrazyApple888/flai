@@ -81,3 +81,20 @@ data class ToolGate(
     val inputMapping: Map<String, String> = emptyMap(),
     val outputMapping: Map<String, String> = emptyMap(),
 ) : Gate()
+
+enum class WriteMode { OVERWRITE, APPEND, FAIL_IF_EXISTS }
+
+data class ReadFileGate(
+    override val id: GateId,
+    override val label: String,
+    val path: String,
+    val outputKey: String = "content",
+) : Gate()
+
+data class WriteFileGate(
+    override val id: GateId,
+    override val label: String,
+    val path: String,
+    val contentKey: String,
+    val mode: WriteMode = WriteMode.OVERWRITE,
+) : Gate()

@@ -40,6 +40,8 @@ class FlaiPipelineUiService(private val project: Project) {
             DefaultLlmGateExecutor(llmClient, renderer),
             DefaultLogicGateExecutor(),
             DefaultToolGateExecutor(toolRegistry),
+            DefaultReadFileGateExecutor(project.basePath!!, renderer),
+            DefaultWriteFileGateExecutor(project.basePath!!, renderer),
         )
     )
 

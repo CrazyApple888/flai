@@ -88,6 +88,27 @@ class YamlPipelineParser {
                 inputMapping = parseStringMap(map["inputMapping"]),
                 outputMapping = parseStringMap(map["outputMapping"]),
             )
+            "read-file" -> ReadFileGate(
+                id = id,
+                label = label,
+                path = map["path"] as? String
+                    ?: throw PipelineLoadException("read-file gate '${id.value}' missing 'path'"),
+                outputKey = map["outputKey"] as? String ?: "content",
+            )
+            "write-file" -> WriteFileGate(
+                id = id,
+                label = label,
+                path = map["path"] as? String
+                    ?: throw PipelineLoadException("write-file gate '${id.value}' missing 'path'"),
+                contentKey = map["contentKey"] as? String
+                    ?: throw PipelineLoadException("write-file gate '${id.value}' missing 'contentKey'"),
+                mode = when (val m = map["mode"] as? String ?: "overwrite") {
+                    "overwrite" -> WriteMode.OVERWRITE
+                    "append" -> WriteMode.APPEND
+                    "fail-if-exists" -> WriteMode.FAIL_IF_EXISTS
+                    else -> throw PipelineLoadException("write-file gate '${id.value}': unknown mode '$m'")
+                },
+            )
             else -> throw PipelineLoadException("Unknown gate type '$type' for gate '${id.value}'")
         }
     }
