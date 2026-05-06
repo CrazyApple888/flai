@@ -12,6 +12,6 @@ interface PipelineExecutor {
 sealed class ExecutionEvent {
     data class GateStarted(val gateId: String, val gateLabel: String) : ExecutionEvent()
     data class GateCompleted(val entry: TraceEntry) : ExecutionEvent()
-    data class PipelineCompleted(val context: ExecutionContext) : ExecutionEvent()
+    data class PipelineCompleted(val context: ExecutionContext, val outputs: Map<String, Any?> = emptyMap()) : ExecutionEvent()
     data class PipelineFailed(val error: Throwable, val context: ExecutionContext) : ExecutionEvent()
 }

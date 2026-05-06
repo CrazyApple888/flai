@@ -65,6 +65,7 @@ class FlaiPipelineUiService(private val project: Project) {
     fun refresh() {
         serviceScope.launch {
             try {
+                repository.refreshVfs()
                 val uiPipelines = loadAllWithPaths()
                 _pipelines.value = uiPipelines
             } catch (_: Exception) {
@@ -145,7 +146,7 @@ class FlaiPipelineUiService(private val project: Project) {
             }
 
             is ExecutionEvent.PipelineCompleted -> {
-                val outputs = event.context.snapshot()
+                val outputs = event.outputs
                 _executionState.value = ExecutionUiState.Completed(outputs)
                 outputs.forEach { (k, v) ->
                     _logRows.value += GateRow(

@@ -13,6 +13,7 @@ class CoroutinePipelineExecutor(private val executors: List<GateExecutor<*>>) : 
     override fun execute(pipeline: Pipeline, inputs: Map<String, Any?>) = channelFlow {
         val context = ExecutionContext(inputs)
         var currentGateId: GateId? = pipeline.entryGateId
+        var finalOutputs: Map<String, Any?> = emptyMap()
 
         try {
             while (currentGateId != null) {
@@ -29,9 +30,13 @@ class CoroutinePipelineExecutor(private val executors: List<GateExecutor<*>>) : 
                 val result = executor.execute(gate, context)
                 val duration = System.currentTimeMillis() - start
 
+                if (gate is OutputGate && result is GateResult.Success) {
+                    finalOutputs = result.outputs
+                }
+
                 currentGateId = handleResult(gate, result, context, duration, pipeline)
             }
-            send(ExecutionEvent.PipelineCompleted(context))
+            send(ExecutionEvent.PipelineCompleted(context, finalOutputs))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

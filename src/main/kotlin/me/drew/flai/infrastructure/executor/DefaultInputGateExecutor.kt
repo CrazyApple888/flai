@@ -10,14 +10,18 @@ class DefaultInputGateExecutor : GateExecutor<InputGate> {
     override fun canHandle(gate: Gate) = gate is InputGate
 
     override suspend fun execute(gate: InputGate, context: ExecutionContext): GateResult {
-        val missing = gate.inputSchema.filter { it.required && context.get(it.name) == null && it.default == null }
+        val missing = gate.inputSchema.filter { field ->
+            field.required && field.default == null &&
+                context.get(field.name).let { it == null || it.toString().isBlank() }
+        }
         if (missing.isNotEmpty()) {
             return GateResult.Failure(
                 IllegalArgumentException("Missing required inputs: ${missing.map { it.name }}")
             )
         }
         gate.inputSchema.forEach { field ->
-            if (context.get(field.name) == null && field.default != null) {
+            val value = context.get(field.name)
+            if ((value == null || value.toString().isBlank()) && field.default != null) {
                 context.set(field.name, field.default)
             }
         }
