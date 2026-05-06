@@ -68,6 +68,15 @@ Docs live in `docs/`. After any task that adds or changes features, gates, tools
 - Create a new doc in `docs/` if the topic is not yet covered.
 - Keep `docs/pipeline-yaml-spec.md` in sync with any gate or schema changes.
 
+## Code style
+
+- Always use braces for `if`/`else`/`for`/`while` bodies, even single-line
+- No unused imports, fields, or functions — remove dead code immediately
+- Catch `CancellationException` before `Exception` in `suspend` functions and rethrow it; never swallow it
+- Use `?: throw IllegalStateException(...)` instead of `!!` for nullable platform values (e.g. `project.basePath`)
+- Track `Job` references for coroutines launched on repeated calls (e.g. panel rebuilds) and cancel the previous job before launching a new one
+- Services that own a `CoroutineScope` must implement `Disposable` and cancel the scope in `override fun dispose()`
+
 ## Key conventions
 
 - New gate type → add sealed subclass in `Gate.kt`, a `DefaultXxxGateExecutor`, wire it in `FlaiPipelineUiService`, add parsing in `YamlPipelineParser.parseGate()`

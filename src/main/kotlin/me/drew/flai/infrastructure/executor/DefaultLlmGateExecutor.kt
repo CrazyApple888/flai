@@ -1,5 +1,6 @@
 package me.drew.flai.infrastructure.executor
 
+import kotlinx.coroutines.CancellationException
 import me.drew.flai.domain.executor.GateExecutor
 import me.drew.flai.domain.model.ExecutionContext
 import me.drew.flai.domain.model.Gate
@@ -19,6 +20,8 @@ class DefaultLlmGateExecutor(
             val prompt = renderer.render(gate.promptTemplate, context.snapshot())
             val response = llmClient.complete(gate.endpointConfig, prompt)
             GateResult.Success(outputs = mapOf("response" to response))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             GateResult.Failure(e, retryable = true)
         }

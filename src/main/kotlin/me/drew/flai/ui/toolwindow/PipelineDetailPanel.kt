@@ -4,6 +4,7 @@ import com.intellij.openapi.Disposable
 import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.components.JBScrollPane
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,6 +27,7 @@ class PipelineDetailPanel(
 
     private var currentPipeline: UiPipeline? = null
     private val inputValues = mutableMapOf<String, String>()
+    private var executionStateJob: Job? = null
     private val inputsContainer = JPanel(BorderLayout())
     private val logPanel = ExecutionLogPanel(service, disposable)
     private val scope = disposable.coroutineScope()
@@ -95,7 +97,8 @@ class PipelineDetailPanel(
 
         // Run button
         val runButton = JButton("Run Pipeline")
-        scope.launch {
+        executionStateJob?.cancel()
+        executionStateJob = scope.launch {
             service.executionState.onEach { state ->
                 withContext(Dispatchers.Main) {
                     runButton.isEnabled = state !is ExecutionUiState.Running

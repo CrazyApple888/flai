@@ -1,5 +1,6 @@
 package me.drew.flai.ui.service
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.*
@@ -19,10 +20,9 @@ import me.drew.flai.ui.model.*
 import me.drew.flai.usecase.ListPipelinesUseCase
 import me.drew.flai.usecase.RunPipelineUseCase
 import java.io.File
-import java.nio.file.Path
 
 @Service(Service.Level.PROJECT)
-class FlaiPipelineUiService(private val project: Project) {
+class FlaiPipelineUiService(private val project: Project) : Disposable {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val toolRegistry = IdeToolRegistry()
@@ -33,6 +33,9 @@ class FlaiPipelineUiService(private val project: Project) {
     private val validator = PipelineValidator()
     val repository = YamlPipelineRepository(project, parser)
 
+    private val projectBasePath: String = project.basePath
+        ?: throw IllegalStateException("Project '${project.name}' has no base path")
+
     private val pipelineExecutor = CoroutinePipelineExecutor(
         listOf(
             DefaultInputGateExecutor(),
@@ -40,12 +43,12 @@ class FlaiPipelineUiService(private val project: Project) {
             DefaultLlmGateExecutor(llmClient, renderer),
             DefaultLogicGateExecutor(),
             DefaultToolGateExecutor(toolRegistry),
-            DefaultReadFileGateExecutor(project.basePath!!, renderer),
-            DefaultWriteFileGateExecutor(project.basePath!!, renderer),
+            DefaultReadFileGateExecutor(projectBasePath, renderer),
+            DefaultWriteFileGateExecutor(projectBasePath, renderer),
         )
     )
 
-    private val runUseCase = RunPipelineUseCase(repository, pipelineExecutor)
+    private val runUseCase = RunPipelineUseCase(repository, pipelineExecutor, validator)
     private val listUseCase = ListPipelinesUseCase(repository)
 
     private val _pipelines = MutableStateFlow<List<UiPipeline>>(emptyList())
@@ -193,7 +196,7 @@ class FlaiPipelineUiService(private val project: Project) {
         )
     }
 
-    fun dispose() {
+    override fun dispose() {
         serviceScope.cancel()
     }
 }

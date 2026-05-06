@@ -1,5 +1,6 @@
 package me.drew.flai.infrastructure.executor
 
+import kotlinx.coroutines.CancellationException
 import me.drew.flai.domain.executor.GateExecutor
 import me.drew.flai.domain.model.ExecutionContext
 import me.drew.flai.domain.model.Gate
@@ -19,6 +20,8 @@ class DefaultToolGateExecutor(private val toolRegistry: ToolRegistry) : GateExec
             val inputs = context.resolve(gate.inputMapping)
             val outputs = tool.invoke(inputs, context)
             GateResult.Success(outputs)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             GateResult.Failure(e)
         }

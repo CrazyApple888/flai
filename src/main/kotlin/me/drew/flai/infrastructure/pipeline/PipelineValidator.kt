@@ -20,10 +20,12 @@ class PipelineValidator {
 
     private fun validateEdgeGatesExist(pipeline: Pipeline) {
         pipeline.edges.forEach { edge ->
-            if (edge.from !in pipeline.gates)
+            if (edge.from !in pipeline.gates) {
                 throw PipelineValidationException("Edge references unknown gate '${edge.from.value}'")
-            if (edge.to !in pipeline.gates)
+            }
+            if (edge.to !in pipeline.gates) {
                 throw PipelineValidationException("Edge references unknown gate '${edge.to.value}'")
+            }
         }
     }
 

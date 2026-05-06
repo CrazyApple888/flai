@@ -60,7 +60,9 @@ class PipelineListPanel(
                     listModel.replaceAll(pipelines)
                     // Restore selection after list update
                     val idx = pipelines.indexOfFirst { it.id == previouslySelected }
-                    if (idx >= 0) jbList.selectedIndex = idx
+                    if (idx >= 0) {
+                        jbList.selectedIndex = idx
+                    }
                     suppressSelectionEvent = false
                 }
             }.collect {}
