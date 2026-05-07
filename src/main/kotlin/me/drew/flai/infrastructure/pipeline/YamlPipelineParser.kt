@@ -54,6 +54,12 @@ class YamlPipelineParser {
         val type = map["type"] as? String ?: throw PipelineLoadException("Gate '${id.value}' missing 'type'")
         val label = map["label"] as? String ?: id.value
 
+        if (type != "llm" && map.containsKey("skills")) {
+            throw PipelineLoadException(
+                "Gate '${id.value}' of type '$type' does not support 'skills'"
+            )
+        }
+
         return when (type) {
             "input" -> InputGate(
                 id = id,
@@ -68,8 +74,8 @@ class YamlPipelineParser {
             "llm" -> LlmGate(
                 id = id,
                 label = label,
-                promptTemplate = map["promptTemplate"] as? String
-                    ?: throw PipelineLoadException("LLM gate '${id.value}' missing 'promptTemplate'"),
+                promptTemplate = map["promptTemplate"] as? String ?: "",
+                skills = parseSkillsList(id, map["skills"]),
                 inputMapping = parseStringMap(map["inputMapping"]),
                 outputMapping = parseStringMap(map["outputMapping"]).ifEmpty { mapOf("response" to "response") },
                 endpointConfig = parseEndpointConfig(id, map["endpoint"]),
@@ -160,6 +166,23 @@ class YamlPipelineParser {
             val port = m["port"] as? String ?: throw PipelineLoadException("Branch missing 'port'")
             val condition = parseCondition(gateId, m["condition"])
             Branch(port, condition)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun parseSkillsList(gateId: GateId, obj: Any?): List<String> {
+        if (obj == null) {
+            return emptyList()
+        }
+        val list = obj as? List<*>
+            ?: throw PipelineLoadException(
+                "Gate '${gateId.value}': 'skills' must be a list of file paths, got ${obj::class.simpleName}"
+            )
+        return list.mapIndexed { i, item ->
+            item as? String
+                ?: throw PipelineLoadException(
+                    "Gate '${gateId.value}': 'skills[$i]' must be a string, got ${item?.let { it::class.simpleName } ?: "null"}"
+                )
         }
     }
 

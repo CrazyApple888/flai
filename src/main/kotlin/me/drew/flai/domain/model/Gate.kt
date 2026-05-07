@@ -33,6 +33,7 @@ data class LlmGate(
     override val id: GateId,
     override val label: String,
     val promptTemplate: String,
+    val skills: List<String> = emptyList(),
     val inputMapping: Map<String, String> = emptyMap(),
     val outputMapping: Map<String, String> = mapOf("response" to "response"),
     val endpointConfig: LlmEndpointConfig,

@@ -36,11 +36,13 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
     private val projectBasePath: String = project.basePath
         ?: throw IllegalStateException("Project '${project.name}' has no base path")
 
+    private val skillLoader = SkillLoader(projectBasePath)
+
     private val pipelineExecutor = CoroutinePipelineExecutor(
         listOf(
             DefaultInputGateExecutor(),
             DefaultOutputGateExecutor(),
-            DefaultLlmGateExecutor(llmClient, renderer),
+            DefaultLlmGateExecutor(llmClient, renderer, skillLoader),
             DefaultLogicGateExecutor(),
             DefaultToolGateExecutor(toolRegistry),
             DefaultReadFileGateExecutor(projectBasePath, renderer),

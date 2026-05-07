@@ -12,18 +12,32 @@ import me.drew.flai.domain.port.TemplateRenderer
 class DefaultLlmGateExecutor(
     private val llmClient: LlmClient,
     private val renderer: TemplateRenderer,
+    private val skillLoader: SkillLoader,
 ) : GateExecutor<LlmGate> {
     override fun canHandle(gate: Gate) = gate is LlmGate
 
     override suspend fun execute(gate: LlmGate, context: ExecutionContext): GateResult {
         return try {
-            val prompt = renderer.render(gate.promptTemplate, context.snapshot())
-            val response = llmClient.complete(gate.endpointConfig, prompt)
+            val skillBodies: List<String> = skillLoader.load(gate.skills)
+            val renderedTemplate: String = renderer.render(gate.promptTemplate, context.snapshot())
+            val mergedPrompt: String = buildMergedPrompt(skillBodies, renderedTemplate)
+            val response = llmClient.complete(gate.endpointConfig, mergedPrompt)
             GateResult.Success(outputs = mapOf("response" to response))
         } catch (e: CancellationException) {
             throw e
+        } catch (e: SkillLoadException) {
+            GateResult.Failure(e, retryable = false)
         } catch (e: Exception) {
             GateResult.Failure(e, retryable = true)
+        }
+    }
+
+    private fun buildMergedPrompt(skillBodies: List<String>, renderedTemplate: String): String {
+        return if (skillBodies.isEmpty()) {
+            renderedTemplate
+        } else {
+            val parts = skillBodies + if (renderedTemplate.isNotEmpty()) listOf(renderedTemplate) else emptyList()
+            parts.joinToString("\n\n")
         }
     }
 }

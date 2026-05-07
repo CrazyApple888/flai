@@ -72,6 +72,9 @@ ask-llm:
   type: llm
   label: Ask Claude
   promptTemplate: "Summarize the following:\n\n{{content}}"
+  skills:                          # optional list of skill file paths
+    - .flai/skills/persona.md
+    - .flai/skills/output-format.md
   inputMapping:
     content: raw_text   # template var → context key (maps context into template vars)
   outputMapping:
@@ -98,6 +101,33 @@ The raw LLM text is always stored under key `"response"` in the executor output;
 **Supported API shapes:**
 - Anthropic (`content[0].text`)
 - OpenAI (`choices[0].message.content`)
+
+**`skills`** (optional) — a list of file paths referencing plain-text skill files. Skills are reusable instruction bundles that are prepended before the gate's `promptTemplate` when the LLM call is made.
+
+- Each path may be absolute or relative. Relative paths are resolved against the **project root** (the parent directory of `.flai/`).
+- Skill files are read fresh from disk on each execution (no caching).
+- A skill file may contain optional YAML frontmatter (delimited by `---` at the start of the file). Frontmatter is stripped before the skill body is used — it is never sent to the LLM.
+- Skills are concatenated in declaration order, each pair separated by a blank line (`\n\n`), followed by the rendered `promptTemplate`. When `promptTemplate` is absent or empty, only skill content is sent.
+- Template variable substitution (`{{...}}`) is applied only to `promptTemplate`, never to skill file contents.
+- If a skill file does not exist at the resolved path, the gate fails immediately with an error message that names the missing path.
+- If a skill file exists but cannot be read (e.g., permission denied or it is a directory), the gate fails with a distinct error identifying the path and the nature of the failure.
+- `skills` is accepted only on `llm` gates. Its presence on any other gate type produces a parse-time error.
+
+**Skill file format:** A skill file is a plain text file (conventionally `.md`). The entire file body is treated as opaque instruction text — no structured parsing is performed. Files with any extension are accepted.
+
+**Example skill file** (`.flai/skills/code-review-expert.md`):
+```
+You are a senior software engineer performing a code review. Focus on correctness, readability, and maintainability. Point out specific line-level issues where possible.
+```
+
+**Merged prompt structure** (with two skills and a non-empty `promptTemplate`):
+```
+<skill 1 body>
+
+<skill 2 body>
+
+<rendered promptTemplate>
+```
 
 ---
 
