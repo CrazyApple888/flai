@@ -40,6 +40,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     private var selectedNodeSeq: Int = -1
     private var selectedEdge: VisualEdge? = null
     private val transform = AffineTransform()
+    private var zoom = 1.0
 
     // Drag state
     private var dragNodeSeq: Int = -1
@@ -163,7 +164,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                 if (isPanning) {
                     val dx = e.x - panStartX
                     val dy = e.y - panStartY
-                    transform.translate(dx / transform.scaleX, dy / transform.scaleY)
+                    transform.preConcatenate(AffineTransform.getTranslateInstance(dx.toDouble(), dy.toDouble()))
                     panStartX = e.x
                     panStartY = e.y
                     repaint()
@@ -199,15 +200,21 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
             }
 
             override fun mouseWheelMoved(e: MouseWheelEvent) {
-                val factor = if (e.wheelRotation < 0) 1.1 else 1.0 / 1.1
-                val currentScale = transform.scaleX
-                val newScale = (currentScale * factor).coerceIn(MIN_ZOOM, MAX_ZOOM)
-                if (newScale == currentScale) return
-                val ratio = newScale / currentScale
-                val modelPt = inversePoint(e.x, e.y)
-                transform.translate(modelPt.x, modelPt.y)
-                transform.scale(ratio, ratio)
-                transform.translate(-modelPt.x, -modelPt.y)
+                val rotation = e.preciseWheelRotation
+                if (Math.abs(rotation) < 0.1) return
+                val factor = if (rotation < 0) 1.1 else 1.0 / 1.1
+                val newZoom = (zoom * factor).coerceIn(MIN_ZOOM, MAX_ZOOM)
+                if (newZoom == zoom) return
+                val ratio = newZoom / zoom
+                zoom = newZoom
+                // Zoom around screen point — preConcatenate in reverse order so pivot = cursor
+                val sx = e.x.toDouble()
+                val sy = e.y.toDouble()
+                val zoomAt = AffineTransform()
+                zoomAt.translate(sx, sy)
+                zoomAt.scale(ratio, ratio)
+                zoomAt.translate(-sx, -sy)
+                transform.preConcatenate(zoomAt)
                 repaint()
             }
 
@@ -286,8 +293,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     }
 
     fun resetTransform() {
-        transform.setToIdentity()
         if (model.nodes.isEmpty()) {
+            transform.setToIdentity()
+            zoom = 1.0
             repaint()
             return
         }
@@ -301,6 +309,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         val scaleX = if (contentW > 0) (width - margin * 2).toDouble() / contentW else 1.0
         val scaleY = if (contentH > 0) (height - margin * 2).toDouble() / contentH else 1.0
         val scale = minOf(scaleX, scaleY, MAX_ZOOM).coerceAtLeast(MIN_ZOOM)
+        zoom = scale
         transform.setToIdentity()
         transform.translate(margin.toDouble(), margin.toDouble())
         transform.scale(scale, scale)
@@ -315,7 +324,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
 
         val savedTransform = g2.transform
-        g2.transform(transform)
+        val combined = AffineTransform(savedTransform)
+        combined.concatenate(transform)
+        g2.transform = combined
 
         // Draw edges
         for (edge in model.edges) {
