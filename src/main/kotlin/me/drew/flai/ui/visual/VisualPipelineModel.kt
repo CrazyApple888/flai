@@ -2,6 +2,13 @@ package me.drew.flai.ui.visual
 
 import me.drew.flai.domain.model.*
 
+sealed class UndoableEdit {
+    data class NodeAdded(val node: VisualNode) : UndoableEdit()
+    data class NodeRemoved(val node: VisualNode, val removedEdges: List<VisualEdge>, val wasEntry: Boolean) : UndoableEdit()
+    data class EdgeAdded(val edge: VisualEdge) : UndoableEdit()
+    data class EdgeRemoved(val edge: VisualEdge) : UndoableEdit()
+}
+
 class VisualPipelineModel {
     var pipelineId: String = ""
     var pipelineName: String = ""
@@ -13,6 +20,7 @@ class VisualPipelineModel {
 
     var isDirty: Boolean = false
 
+    private val undoStack: ArrayDeque<UndoableEdit> = ArrayDeque()
     private var nextSeq: Int = 0
     fun nextNodeSeq(): Int = nextSeq++
 
@@ -24,16 +32,21 @@ class VisualPipelineModel {
         val seq = nextNodeSeq()
         val node = VisualNode(nodeSeq = seq, gateId = gate.id.value, gate = gate, x = x, y = y)
         nodes.add(node)
+        undoStack.addLast(UndoableEdit.NodeAdded(node))
         isDirty = true
         return node
     }
 
     fun removeNode(seq: Int) {
+        val node = nodeBySeq(seq) ?: return
+        val removedEdges = edges.filter { it.fromSeq == seq || it.toSeq == seq }
+        val wasEntry = entryNodeSeq == seq
         nodes.removeAll { it.nodeSeq == seq }
         edges.removeAll { it.fromSeq == seq || it.toSeq == seq }
-        if (entryNodeSeq == seq) {
+        if (wasEntry) {
             entryNodeSeq = -1
         }
+        undoStack.addLast(UndoableEdit.NodeRemoved(node, removedEdges, wasEntry))
         isDirty = true
     }
 
@@ -60,18 +73,53 @@ class VisualPipelineModel {
         }
         if (duplicate) return false
         edges.add(edge)
+        undoStack.addLast(UndoableEdit.EdgeAdded(edge))
         isDirty = true
         return true
     }
 
     fun removeEdge(edge: VisualEdge) {
-        edges.removeAll {
+        val removed = edges.removeAll {
             it.fromSeq == edge.fromSeq &&
                 it.fromPort == edge.fromPort &&
                 it.toSeq == edge.toSeq &&
                 it.toPort == edge.toPort
         }
+        if (removed) {
+            undoStack.addLast(UndoableEdit.EdgeRemoved(edge))
+            isDirty = true
+        }
+    }
+
+    fun undo(): Boolean {
+        val edit = undoStack.removeLastOrNull() ?: return false
+        when (edit) {
+            is UndoableEdit.NodeAdded -> {
+                nodes.removeAll { it.nodeSeq == edit.node.nodeSeq }
+                edges.removeAll { it.fromSeq == edit.node.nodeSeq || it.toSeq == edit.node.nodeSeq }
+                if (entryNodeSeq == edit.node.nodeSeq) entryNodeSeq = -1
+            }
+            is UndoableEdit.NodeRemoved -> {
+                nodes.add(edit.node)
+                edges.addAll(edit.removedEdges)
+                if (edit.wasEntry) entryNodeSeq = edit.node.nodeSeq
+            }
+            is UndoableEdit.EdgeAdded -> {
+                edges.removeAll {
+                    it.fromSeq == edit.edge.fromSeq && it.fromPort == edit.edge.fromPort &&
+                        it.toSeq == edit.edge.toSeq && it.toPort == edit.edge.toPort
+                }
+            }
+            is UndoableEdit.EdgeRemoved -> {
+                edges.add(edit.edge)
+            }
+        }
         isDirty = true
+        return true
+    }
+
+    fun clearHistory() {
+        undoStack.clear()
     }
 
     fun moveNode(seq: Int, x: Int, y: Int) {
@@ -158,6 +206,7 @@ class VisualPipelineModel {
                 ))
             }
             model.isDirty = false
+            model.clearHistory()
             return model
         }
     }

@@ -157,6 +157,7 @@ class FlaiPipelineFileEditor(
             model.pipelineDescription = newModel.pipelineDescription
             model.entryNodeSeq = newModel.entryNodeSeq
             model.isDirty = false
+            model.clearHistory()
             canvas.repaint()
             showError(null)
         } catch (e: Exception) {

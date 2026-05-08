@@ -1,5 +1,9 @@
 package me.drew.flai.ui.visual
 
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.IdeActions
 import com.intellij.ui.JBColor
 import me.drew.flai.domain.model.*
 import me.drew.flai.ui.model.GateStatus
@@ -247,6 +251,22 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                 }
             }
         })
+
+        val undoAction = object : AnAction() {
+            override fun actionPerformed(e: AnActionEvent) {
+                if (!isEditable) return
+                if (model.undo()) {
+                    selectedNodeSeq = -1
+                    selectedEdge = null
+                    onNodeSelected(null)
+                    repaint()
+                }
+            }
+        }
+        undoAction.registerCustomShortcutSet(
+            ActionManager.getInstance().getAction(IdeActions.ACTION_UNDO).shortcutSet,
+            this,
+        )
 
         // TransferHandler to accept gate-type drops from palette
         transferHandler = object : TransferHandler() {
