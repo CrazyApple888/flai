@@ -31,6 +31,9 @@
         <runLineMarkerContributor
             language="yaml"
             implementationClass="me.drew.flai.ui.editor.FlaiRunLineMarkerContributor"/>
+
+        <fileEditorProvider
+            implementation="me.drew.flai.ui.editor.FlaiPipelineFileEditorProvider"/>
     </extensions>
 
     <actions>
