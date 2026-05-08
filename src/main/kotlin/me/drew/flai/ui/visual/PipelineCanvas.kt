@@ -233,6 +233,15 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                     if (edge != null) {
                         model.removeEdge(edge)
                         selectedEdge = null
+                        onNodeSelected(null)
+                        repaint()
+                        return
+                    }
+                    val nodeSeq = selectedNodeSeq
+                    if (nodeSeq != -1) {
+                        model.removeNode(nodeSeq)
+                        selectedNodeSeq = -1
+                        onNodeSelected(null)
                         repaint()
                     }
                 }
