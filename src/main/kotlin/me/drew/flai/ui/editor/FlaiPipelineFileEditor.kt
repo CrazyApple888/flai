@@ -1,6 +1,9 @@
 package me.drew.flai.ui.editor
 
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.event.DocumentEvent
@@ -12,6 +15,7 @@ import com.intellij.openapi.fileEditor.FileEditorStateLevel
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.ui.JBColor
 import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.components.JBLabel
 import kotlinx.coroutines.*
@@ -66,10 +70,15 @@ class FlaiPipelineFileEditor(
     private val cancelBtn = JButton("Cancel").apply { isVisible = false }
 
     private val errorBanner = JBLabel("").apply { isVisible = false }
+    private val savedBanner = JBLabel("Saved").apply {
+        isVisible = false
+        foreground = JBColor(0x2E7D32, 0x66BB6A)
+    }
     private val rootPanel = JPanel(BorderLayout())
 
     private var applyInProgress = false
     private var debounceJob: Job? = null
+    private var savedTimer: Timer? = null
     private val pcs = PropertyChangeSupport(this)
 
     private val docListener = object : DocumentListener {
@@ -126,7 +135,19 @@ class FlaiPipelineFileEditor(
         val topBar = JPanel(BorderLayout())
         topBar.add(toolbar, BorderLayout.WEST)
         errorBanner.border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
-        topBar.add(errorBanner, BorderLayout.CENTER)
+        savedBanner.border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
+        val statusPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 0))
+        statusPanel.add(errorBanner)
+        statusPanel.add(savedBanner)
+        topBar.add(statusPanel, BorderLayout.CENTER)
+
+        val saveAction = object : AnAction() {
+            override fun actionPerformed(e: AnActionEvent) { onApply() }
+        }
+        saveAction.registerCustomShortcutSet(
+            ActionManager.getInstance().getAction("SaveAll").shortcutSet,
+            rootPanel,
+        )
 
         val centerSplit = OnePixelSplitter(false, 0.75f).apply {
             firstComponent = canvas
@@ -202,6 +223,19 @@ class FlaiPipelineFileEditor(
         layoutStore.save(positions)
         model.isDirty = false
         pcs.firePropertyChange("modified", null, null)
+        showSavedInformer()
+    }
+
+    private fun showSavedInformer() {
+        savedTimer?.stop()
+        showError(null)
+        savedBanner.isVisible = true
+        savedTimer = Timer(2000) {
+            savedBanner.isVisible = false
+        }.apply {
+            isRepeats = false
+            start()
+        }
     }
 
     private fun onAutoLayout() {
@@ -222,6 +256,10 @@ class FlaiPipelineFileEditor(
     private fun showError(msg: String?) {
         errorBanner.text = msg ?: ""
         errorBanner.isVisible = msg != null
+        if (msg != null) {
+            savedTimer?.stop()
+            savedBanner.isVisible = false
+        }
     }
 
     private fun setEditingEnabled(enabled: Boolean) {
@@ -283,6 +321,7 @@ class FlaiPipelineFileEditor(
 
     override fun dispose() {
         document?.removeDocumentListener(docListener)
+        savedTimer?.stop()
         editorScope.cancel()
     }
 }
