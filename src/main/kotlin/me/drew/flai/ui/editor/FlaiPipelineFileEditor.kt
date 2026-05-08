@@ -1,6 +1,7 @@
 package me.drew.flai.ui.editor
 
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
@@ -42,7 +43,15 @@ class FlaiPipelineFileEditor(
     private val document = FileDocumentManager.getInstance().getDocument(file)
     private val service = project.getService(FlaiPipelineUiService::class.java)
 
-    private val sidecarFile = File(file.parent?.path ?: "", file.name + ".layout.json")
+    private val sidecarFile = run {
+        val relativePath = file.path
+            .removePrefix(project.basePath ?: "")
+            .replace(File.separatorChar, '_')
+            .trimStart('_')
+        val layoutDir = File(PathManager.getSystemPath(), "flai/layouts/${project.locationHash}")
+        layoutDir.mkdirs()
+        File(layoutDir, "$relativePath.layout.json")
+    }
     private val layoutStore = LayoutStore(sidecarFile)
 
     private val model: VisualPipelineModel
