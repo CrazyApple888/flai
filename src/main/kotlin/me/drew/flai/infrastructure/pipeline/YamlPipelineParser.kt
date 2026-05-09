@@ -158,8 +158,9 @@ class YamlPipelineParser {
 
     @Suppress("UNCHECKED_CAST")
     private fun parseBranches(gateId: GateId, obj: Any?): List<Branch> {
+        if (obj == null) return emptyList()
         val list = obj as? List<Any>
-            ?: throw PipelineLoadException("Logic gate '${gateId.value}' missing 'branches'")
+            ?: throw PipelineLoadException("Logic gate '${gateId.value}': 'branches' must be a list")
         return list.map { item ->
             val m = item as? Map<String, Any>
                 ?: throw PipelineLoadException("Branch must be a map")

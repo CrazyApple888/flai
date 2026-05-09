@@ -2,6 +2,7 @@ package me.drew.flai.ui.service
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -20,6 +21,8 @@ import me.drew.flai.ui.model.*
 import me.drew.flai.usecase.ListPipelinesUseCase
 import me.drew.flai.usecase.RunPipelineUseCase
 import java.io.File
+
+private val LOG = logger<FlaiPipelineUiService>()
 
 @Service(Service.Level.PROJECT)
 class FlaiPipelineUiService(private val project: Project) : Disposable {
@@ -73,7 +76,8 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
                 repository.refreshVfs()
                 val uiPipelines = loadAllWithPaths()
                 _pipelines.value = uiPipelines
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                LOG.error("Pipeline refresh failed", e)
             }
         }
     }
@@ -170,9 +174,15 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
     private suspend fun loadAllWithPaths(): List<UiPipeline> = withContext(Dispatchers.IO) {
         val dir = project.basePath?.let { File(it, ".flai") } ?: return@withContext emptyList()
         if (!dir.exists()) return@withContext emptyList()
-        dir.listFiles { f -> f.name.endsWith(".flai.yaml") || f.name.endsWith(".yaml") }
-            ?.mapNotNull { file -> runCatching { toUiPipelineFromFile(file) }.getOrNull() }
-            ?: emptyList()
+        val files = dir.listFiles { f -> f.isFile && (f.name.endsWith(".flai.yaml") || f.name.endsWith(".yaml")) }
+            ?: return@withContext emptyList()
+        LOG.info("Flai: found ${files.size} pipeline file(s) in ${dir.absolutePath}")
+        files.mapNotNull { file ->
+            runCatching { toUiPipelineFromFile(file) }.getOrElse { e ->
+                LOG.warn("Flai: failed to load pipeline from ${file.name}: ${e.message}", e)
+                null
+            }
+        }
     }
 
     private fun toUiPipelineFromFile(file: File): UiPipeline {

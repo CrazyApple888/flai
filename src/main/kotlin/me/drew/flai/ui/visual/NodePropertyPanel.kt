@@ -1,5 +1,6 @@
 package me.drew.flai.ui.visual
 
+import com.intellij.icons.AllIcons
 import com.intellij.ui.components.JBScrollPane
 import me.drew.flai.domain.model.*
 import me.drew.flai.infrastructure.tool.IdeToolRegistry
@@ -22,10 +23,13 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
     private val innerPanel = JPanel()
     private val scrollPane = JBScrollPane(innerPanel)
     private val editableComponents = mutableListOf<JComponent>()
+    private var firstLlmField: JComponent? = null
 
     init {
         innerPanel.layout = BoxLayout(innerPanel, BoxLayout.Y_AXIS)
         innerPanel.border = BorderFactory.createEmptyBorder(8, 8, 8, 8)
+        preferredSize = Dimension(280, 400)
+        minimumSize = Dimension(220, 200)
         add(scrollPane, BorderLayout.CENTER)
         showEmpty()
     }
@@ -35,6 +39,7 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
         currentModel = model
         canvas = canvasRef
         editableComponents.clear()
+        firstLlmField = null
         innerPanel.removeAll()
 
         if (node == null) {
@@ -42,19 +47,24 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
             return
         }
 
-        addRow("ID", buildTextField(node.gateId) { newId ->
+        // Basic Info card
+        val basicCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        fun addToCard(labelText: String, field: JComponent) {
+            val row = labeledRow(labelText, field)
+            basicCard.add(row)
+        }
+        addToCard("ID", buildTextField(node.gateId) { newId ->
             val m = currentModel ?: return@buildTextField
             val n = currentNode ?: return@buildTextField
             if (m.renameGateId(n.nodeSeq, newId)) {
                 canvasRef.repaint()
             }
         })
-
-        addRow("Label", buildTextField(node.gate.label) { newLabel ->
+        addToCard("Label", buildTextField(node.gate.label) { newLabel ->
             updateGate(node.nodeSeq, rebuildWithLabel(node.gate, newLabel))
         })
-
-        addSeparator()
+        val basicInfoCard = cardPanel("Basic Info", basicCard)
+        innerPanel.add(basicInfoCard)
 
         when (val gate = node.gate) {
             is InputGate -> buildInputGateFields(node.nodeSeq, gate)
@@ -65,12 +75,17 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
             is LogicGate -> buildLogicGateFields(node.nodeSeq, gate)
             is ToolGate -> buildToolGateFields(node.nodeSeq, gate)
             is ReadFileGate -> {
-                addRow("Path", buildTextField(gate.path) { v -> updateGate(node.nodeSeq, gate.copy(path = v)) })
-                addRow("Output Key", buildTextField(gate.outputKey) { v -> updateGate(node.nodeSeq, gate.copy(outputKey = v)) })
+                val fileCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+                fun addToFileCard(label: String, field: JComponent) { fileCard.add(labeledRow(label, field)) }
+                addToFileCard("Path", buildTextField(gate.path) { v -> updateGate(node.nodeSeq, gate.copy(path = v)) })
+                addToFileCard("Output Key", buildTextField(gate.outputKey) { v -> updateGate(node.nodeSeq, gate.copy(outputKey = v)) })
+                innerPanel.add(cardPanel("File Settings", fileCard))
             }
             is WriteFileGate -> {
-                addRow("Path", buildTextField(gate.path) { v -> updateGate(node.nodeSeq, gate.copy(path = v)) })
-                addRow("Content Key", buildTextField(gate.contentKey) { v -> updateGate(node.nodeSeq, gate.copy(contentKey = v)) })
+                val fileCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+                fun addToFileCard(label: String, field: JComponent) { fileCard.add(labeledRow(label, field)) }
+                addToFileCard("Path", buildTextField(gate.path) { v -> updateGate(node.nodeSeq, gate.copy(path = v)) })
+                addToFileCard("Content Key", buildTextField(gate.contentKey) { v -> updateGate(node.nodeSeq, gate.copy(contentKey = v)) })
                 val modeCombo = JComboBox(arrayOf("overwrite", "append", "fail-if-exists")).apply {
                     selectedItem = when (gate.mode) {
                         WriteMode.OVERWRITE -> "overwrite"
@@ -87,7 +102,8 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
                     }
                 }
                 editableComponents.add(modeCombo)
-                addRow("Mode", modeCombo)
+                addToFileCard("Mode", modeCombo)
+                innerPanel.add(cardPanel("File Settings", fileCard))
             }
         }
 
@@ -97,11 +113,6 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
     }
 
     private fun buildInputGateFields(nodeSeq: Int, gate: InputGate) {
-        val label = JLabel("Schema Fields")
-        label.font = label.font.deriveFont(Font.BOLD)
-        innerPanel.add(label)
-        innerPanel.add(Box.createVerticalStrut(4))
-
         val colNames = arrayOf("Name", "Type", "Required", "Default")
         val tableModel = object : DefaultTableModel(colNames, 0) {
             override fun getColumnClass(col: Int) = if (col == 2) Boolean::class.java else String::class.java
@@ -132,7 +143,6 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
         val tableScroll = JScrollPane(table).apply {
             maximumSize = Dimension(Int.MAX_VALUE, 120)
         }
-        innerPanel.add(tableScroll)
 
         val addBtn = JButton("Add Field").apply {
             alignmentX = LEFT_ALIGNMENT
@@ -147,17 +157,30 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
         val btnRow = JPanel(FlowLayout(FlowLayout.LEFT, 2, 2)).apply {
             add(addBtn); add(removeBtn)
         }
-        innerPanel.add(btnRow)
-        innerPanel.add(Box.createVerticalStrut(4))
+
+        val schemaContent = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(tableScroll)
+            add(btnRow)
+        }
+        innerPanel.add(cardPanel("Schema", schemaContent))
     }
 
     private fun buildLlmGateFields(nodeSeq: Int, gate: LlmGate) {
-        val promptLabel = JLabel("Prompt Template")
-        promptLabel.font = promptLabel.font.deriveFont(Font.BOLD)
-        innerPanel.add(promptLabel)
-
         val promptArea = JTextArea(gate.promptTemplate, 6, 20).apply {
+            // Mark as the first LLM field for scrollToLlmFieldGroup
+            firstLlmField = this
             lineWrap = true; wrapStyleWord = true
+            // Blue-ring focus for the text area
+            val origBorder = border
+            addFocusListener(object : java.awt.event.FocusAdapter() {
+                override fun focusGained(e: java.awt.event.FocusEvent) {
+                    border = BorderFactory.createLineBorder(Color(55, 120, 255), 2)
+                }
+                override fun focusLost(e: java.awt.event.FocusEvent) {
+                    border = origBorder
+                }
+            })
             document.addDocumentListener(object : javax.swing.event.DocumentListener {
                 override fun insertUpdate(e: javax.swing.event.DocumentEvent) = fire()
                 override fun removeUpdate(e: javax.swing.event.DocumentEvent) = fire()
@@ -170,22 +193,25 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
             maximumSize = Dimension(Int.MAX_VALUE, 140)
             preferredSize = Dimension(250, 140)
         }
-        innerPanel.add(promptScroll)
-        innerPanel.add(Box.createVerticalStrut(4))
+        val promptContent = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(promptScroll)
+        }
+        innerPanel.add(cardPanel("Prompt Template", promptContent))
 
-        addSection("Endpoint URL", buildTextField(gate.endpointConfig.url) { v ->
+        val endpointContent = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        endpointContent.add(labeledRow("Endpoint URL", buildTextField(gate.endpointConfig.url) { v ->
             updateGate(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(url = v)))
-        })
-        addSection("Credential ID", buildTextField(gate.endpointConfig.credentialId) { v ->
+        }))
+        endpointContent.add(labeledRow("Credential ID", buildTextField(gate.endpointConfig.credentialId) { v ->
             updateGate(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(credentialId = v)))
-        })
-        addSection("Model", buildTextField(gate.endpointConfig.model) { v ->
+        }))
+        endpointContent.add(labeledRow("Model", buildTextField(gate.endpointConfig.model) { v ->
             updateGate(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(model = v)))
-        })
+        }))
+        innerPanel.add(cardPanel("Endpoint Config", endpointContent))
 
-        addSeparator()
-        buildSkillsSection(nodeSeq, gate)
-        addSeparator()
+        innerPanel.add(buildSkillsCard(nodeSeq, gate))
         buildMappingSection("Input Mapping", gate.inputMapping) { map ->
             updateGate(nodeSeq, gate.copy(inputMapping = map))
         }
@@ -194,11 +220,7 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
         }
     }
 
-    private fun buildSkillsSection(nodeSeq: Int, gate: LlmGate) {
-        val skillLabel = JLabel("Skills (file paths)")
-        skillLabel.font = skillLabel.font.deriveFont(Font.BOLD)
-        innerPanel.add(skillLabel)
-
+    private fun buildSkillsCard(nodeSeq: Int, gate: LlmGate): JPanel {
         val listModel = DefaultListModel<String>()
         gate.skills.forEach { listModel.addElement(it) }
         val list = JList(listModel).apply { visibleRowCount = 3 }
@@ -221,24 +243,24 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
             }
         }
         editableComponents.add(addBtn); editableComponents.add(removeBtn)
-        innerPanel.add(JScrollPane(list).apply { maximumSize = Dimension(Int.MAX_VALUE, 70) })
-        innerPanel.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 2)).apply { add(addBtn); add(removeBtn) })
-        innerPanel.add(Box.createVerticalStrut(4))
+        val skillsContent = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(JScrollPane(list).apply { maximumSize = Dimension(Int.MAX_VALUE, 70) })
+            add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 2)).apply { add(addBtn); add(removeBtn) })
+        }
+        return cardPanel("Skills", skillsContent)
     }
 
     private fun buildLogicGateFields(nodeSeq: Int, gate: LogicGate) {
-        addRow("Default Port", buildTextField(gate.defaultPort ?: "default") { v ->
+        val basicExtra = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        basicExtra.add(labeledRow("Default Port", buildTextField(gate.defaultPort ?: "default") { v ->
             updateGate(nodeSeq, gate.copy(defaultPort = v))
-        })
-        addSeparator()
-
-        val branchesLabel = JLabel("Branches")
-        branchesLabel.font = branchesLabel.font.deriveFont(Font.BOLD)
-        innerPanel.add(branchesLabel)
-        innerPanel.add(Box.createVerticalStrut(4))
+        }))
+        innerPanel.add(basicExtra)
 
         val branchesHolder = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
-        innerPanel.add(branchesHolder)
+        val branchesCard = cardPanel("Branches", branchesHolder)
+        innerPanel.add(branchesCard)
 
         fun rebuildBranches(branches: List<Branch>) {
             branchesHolder.removeAll()
@@ -381,6 +403,7 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
     }
 
     private fun buildToolGateFields(nodeSeq: Int, gate: ToolGate) {
+        val toolContent = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
         val toolNames = toolRegistry.listNames()
         if (toolNames.isNotEmpty()) {
             val combo = JComboBox(toolNames.toTypedArray()).apply {
@@ -390,13 +413,13 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
                 }
             }
             editableComponents.add(combo)
-            addRow("Tool", combo)
+            toolContent.add(labeledRow("Tool", combo))
         } else {
-            addRow("Tool Name", buildTextField(gate.toolName) { v ->
+            toolContent.add(labeledRow("Tool Name", buildTextField(gate.toolName) { v ->
                 updateGate(nodeSeq, gate.copy(toolName = v))
-            })
+            }))
         }
-        addSeparator()
+        innerPanel.add(cardPanel("Tool Settings", toolContent))
         buildMappingSection("Input Mapping", gate.inputMapping) { map ->
             updateGate(nodeSeq, gate.copy(inputMapping = map))
         }
@@ -406,68 +429,162 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
     }
 
     private fun buildMappingSection(title: String, map: Map<String, String>, onUpdate: (Map<String, String>) -> Unit) {
-        val label = JLabel(title)
-        label.font = label.font.deriveFont(Font.BOLD)
-        innerPanel.add(label)
+        // Mutable list of (from, to) row data
+        val rows: MutableList<Array<String>> = map.map { (k, v) -> arrayOf(k, v) }.toMutableList()
 
-        val colNames = arrayOf("From", "To")
-        val tableModel = object : DefaultTableModel(colNames, 0) {
-            override fun isCellEditable(row: Int, col: Int) = isEditable
+        val rowsHolder = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
         }
-        for ((k, v) in map) { tableModel.addRow(arrayOf(k, v)) }
 
         fun syncMap() {
-            val updated = (0 until tableModel.rowCount).mapNotNull { r ->
-                val k = tableModel.getValueAt(r, 0) as? String ?: return@mapNotNull null
-                val v = tableModel.getValueAt(r, 1) as? String ?: return@mapNotNull null
+            val updated = rows.mapNotNull { row ->
+                val k = row[0]
+                val v = row[1]
                 if (k.isEmpty()) null else k to v
             }.toMap()
             onUpdate(updated)
         }
 
-        tableModel.addTableModelListener { syncMap() }
-        val table = JTable(tableModel).apply {
-            preferredScrollableViewportSize = Dimension(250, 60)
+        fun rebuildRows() {
+            rowsHolder.removeAll()
+            if (rows.isEmpty()) {
+                val emptyLabel = JLabel("No mappings added").apply {
+                    foreground = UIManager.getColor("Label.disabledForeground")
+                    alignmentX = LEFT_ALIGNMENT
+                    border = BorderFactory.createEmptyBorder(4, 0, 4, 0)
+                }
+                rowsHolder.add(emptyLabel)
+            } else {
+                rows.forEachIndexed { i, row ->
+                    val fromField = JTextField(row[0]).apply {
+                        maximumSize = Dimension(Int.MAX_VALUE, 28)
+                    }
+                    val toField = JTextField(row[1]).apply {
+                        maximumSize = Dimension(Int.MAX_VALUE, 28)
+                    }
+                    val trashBtn = JButton(AllIcons.Actions.GC).apply {
+                        toolTipText = "Remove this mapping"
+                        preferredSize = Dimension(24, 24)
+                        isBorderPainted = false
+                        isContentAreaFilled = false
+                    }
+                    editableComponents.addAll(listOf(fromField, toField, trashBtn))
+
+                    fromField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+                        override fun insertUpdate(e: javax.swing.event.DocumentEvent) { rows[i][0] = fromField.text; syncMap() }
+                        override fun removeUpdate(e: javax.swing.event.DocumentEvent) { rows[i][0] = fromField.text; syncMap() }
+                        override fun changedUpdate(e: javax.swing.event.DocumentEvent) { rows[i][0] = fromField.text; syncMap() }
+                    })
+                    toField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+                        override fun insertUpdate(e: javax.swing.event.DocumentEvent) { rows[i][1] = toField.text; syncMap() }
+                        override fun removeUpdate(e: javax.swing.event.DocumentEvent) { rows[i][1] = toField.text; syncMap() }
+                        override fun changedUpdate(e: javax.swing.event.DocumentEvent) { rows[i][1] = toField.text; syncMap() }
+                    })
+                    trashBtn.addActionListener {
+                        rows.removeAt(i)
+                        syncMap()
+                        rebuildRows()
+                        rowsHolder.revalidate()
+                        rowsHolder.repaint()
+                    }
+
+                    val rowPanel = JPanel().apply {
+                        layout = BoxLayout(this, BoxLayout.X_AXIS)
+                        alignmentX = LEFT_ALIGNMENT
+                        add(fromField)
+                        add(Box.createHorizontalStrut(4))
+                        add(toField)
+                        add(Box.createHorizontalStrut(2))
+                        add(trashBtn)
+                        maximumSize = Dimension(Int.MAX_VALUE, 30)
+                    }
+                    rowsHolder.add(rowPanel)
+                    rowsHolder.add(Box.createVerticalStrut(2))
+                }
+            }
+            rowsHolder.revalidate()
+            rowsHolder.repaint()
         }
-        editableComponents.add(table)
 
-        val addBtn = JButton("+").apply { addActionListener { tableModel.addRow(arrayOf("", "")) } }
-        val removeBtn = JButton("-").apply { addActionListener { if (table.selectedRow >= 0) tableModel.removeRow(table.selectedRow) } }
-        editableComponents.addAll(listOf(addBtn, removeBtn))
+        rebuildRows()
 
-        innerPanel.add(JScrollPane(table).apply { maximumSize = Dimension(Int.MAX_VALUE, 80) })
-        innerPanel.add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 2)).apply { add(addBtn); add(removeBtn) })
-        innerPanel.add(Box.createVerticalStrut(4))
+        val addBtn = JButton("+ Add").apply {
+            alignmentX = LEFT_ALIGNMENT
+            addActionListener {
+                rows.add(arrayOf("", ""))
+                rebuildRows()
+                rowsHolder.revalidate()
+                rowsHolder.repaint()
+                syncMap()
+            }
+        }
+        editableComponents.add(addBtn)
+
+        val mappingContent = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(rowsHolder)
+            add(addBtn)
+        }
+        innerPanel.add(cardPanel(title, mappingContent))
+    }
+
+    fun scrollToLlmFieldGroup() {
+        val target = firstLlmField ?: return
+        SwingUtilities.invokeLater {
+            val rect = SwingUtilities.convertRectangle(target.parent ?: target, target.bounds, innerPanel)
+            scrollPane.viewport.scrollRectToVisible(rect)
+            target.requestFocusInWindow()
+        }
     }
 
     private fun showEmpty() {
+        firstLlmField = null
         innerPanel.removeAll()
-        innerPanel.add(JLabel("Select a gate to edit properties").apply {
+        val emptyPanel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
             alignmentX = LEFT_ALIGNMENT
-        })
+            isOpaque = false
+            add(Box.createVerticalStrut(24))
+            val iconLabel = JLabel(AllIcons.General.Information).apply {
+                alignmentX = CENTER_ALIGNMENT
+            }
+            add(iconLabel)
+            add(Box.createVerticalStrut(8))
+            val msgLabel = JLabel("Select a node to view its properties").apply {
+                alignmentX = CENTER_ALIGNMENT
+                foreground = UIManager.getColor("Label.disabledForeground")
+                font = font.deriveFont(Font.PLAIN, 12f)
+            }
+            add(msgLabel)
+        }
+        innerPanel.add(emptyPanel)
         innerPanel.revalidate()
         innerPanel.repaint()
     }
 
-    private fun addRow(labelText: String, field: JComponent) {
-        val row = labeledRow(labelText, field)
-        innerPanel.add(row)
-    }
-
-    private fun addSection(labelText: String, field: JComponent) = addRow(labelText, field)
-
     private fun labeledRow(labelText: String, field: JComponent): JPanel {
         return JPanel(BorderLayout(4, 0)).apply {
-            add(JLabel("$labelText:").apply { preferredSize = Dimension(110, 24) }, BorderLayout.WEST)
+            add(JLabel("$labelText:").apply {
+                preferredSize = Dimension(110, 32)
+                font = this.font.deriveFont(Font.PLAIN, 12f)
+            }, BorderLayout.WEST)
             add(field, BorderLayout.CENTER)
-            maximumSize = Dimension(Int.MAX_VALUE, 30)
+            maximumSize = Dimension(Int.MAX_VALUE, 32)
         }
     }
 
-    private fun addSeparator() {
-        innerPanel.add(Box.createVerticalStrut(6))
-        innerPanel.add(JSeparator())
-        innerPanel.add(Box.createVerticalStrut(6))
+    private fun cardPanel(title: String, vararg contents: JComponent): JPanel {
+        return JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            val titledBorder = BorderFactory.createTitledBorder(title)
+            (titledBorder as javax.swing.border.TitledBorder).titleFont =
+                font.deriveFont(Font.BOLD, 13f)
+            border = BorderFactory.createCompoundBorder(
+                BorderFactory.createEmptyBorder(4, 0, 4, 0),
+                titledBorder,
+            )
+            for (c in contents) add(c)
+        }
     }
 
     private fun buildTextField(value: String, onChange: (String) -> Unit): JTextField {
@@ -477,6 +594,19 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
             override fun insertUpdate(e: javax.swing.event.DocumentEvent) = onChange(field.text)
             override fun removeUpdate(e: javax.swing.event.DocumentEvent) = onChange(field.text)
             override fun changedUpdate(e: javax.swing.event.DocumentEvent) = onChange(field.text)
+        })
+        // Blue focus ring
+        val originalBorder = field.border
+        field.addFocusListener(object : java.awt.event.FocusAdapter() {
+            override fun focusGained(e: java.awt.event.FocusEvent) {
+                field.border = BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Color(55, 120, 255), 2),
+                    BorderFactory.createEmptyBorder(1, 1, 1, 1),
+                )
+            }
+            override fun focusLost(e: java.awt.event.FocusEvent) {
+                field.border = originalBorder
+            }
         })
         return field
     }

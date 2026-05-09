@@ -28,7 +28,10 @@ import me.drew.flai.ui.model.GateStatus
 import me.drew.flai.ui.service.FlaiPipelineUiService
 import me.drew.flai.ui.visual.*
 import java.awt.BorderLayout
+import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.beans.PropertyChangeListener
 import java.beans.PropertyChangeSupport
 import java.io.File
@@ -62,12 +65,19 @@ class FlaiPipelineFileEditor(
     private val canvas: PipelineCanvas
     private val propertyPanel: NodePropertyPanel
     private val palettePanel: GatePalettePanel
+    private val minimapPanel: MinimapPanel
+    private lateinit var mainSplit: OnePixelSplitter
 
-    private val applyBtn = JButton("Apply")
-    private val autoLayoutBtn = JButton("Auto-layout")
-    private val fitBtn = JButton("Fit")
-    private val runBtn = JButton("Run")
-    private val cancelBtn = JButton("Cancel").apply { isVisible = false }
+    private val applyBtn = JButton("Apply").apply { toolTipText = "Apply visual changes to YAML" }
+    private val autoLayoutBtn = JButton("Auto-layout").apply { toolTipText = "Auto-arrange nodes" }
+    private val fitBtn = JButton("Fit").apply { toolTipText = "Fit all nodes in view" }
+    private val runBtn = JButton("Run", FlaiIcons.GUTTER_RUN).apply { toolTipText = "Run this pipeline" }
+    private val cancelBtn = JButton("Cancel").apply { isVisible = false; toolTipText = "Cancel running pipeline" }
+
+    private val zoomInBtn = JButton("+").apply { toolTipText = "Zoom in" }
+    private val zoomOutBtn = JButton("–").apply { toolTipText = "Zoom out" }
+    private val resetZoomBtn = JButton("1:1").apply { toolTipText = "Reset zoom" }
+    private val lockZoomBtn = JToggleButton("🔓").apply { toolTipText = "Lock zoom" }
 
     private val errorBanner = JBLabel("").apply { isVisible = false }
     private val savedBanner = JBLabel("Saved").apply {
@@ -99,9 +109,22 @@ class FlaiPipelineFileEditor(
 
         canvas = PipelineCanvas(model)
         propertyPanel = NodePropertyPanel(service.toolRegistry)
-        palettePanel = GatePalettePanel()
+        palettePanel = GatePalettePanel(project, this)
+        minimapPanel = MinimapPanel(
+            model = model,
+            getViewTransform = { canvas.getViewTransform() },
+            getCanvasSize = { Dimension(canvas.width, canvas.height) },
+        )
 
         canvas.onNodeSelected = { node -> propertyPanel.showGate(node, model, canvas) }
+        canvas.onLlmStarClicked = { node ->
+            if (canvas.getSelectedNode()?.nodeSeq != node.nodeSeq) {
+                canvas.onNodeSelected(node)
+                propertyPanel.showGate(node, model, canvas)
+            }
+            propertyPanel.scrollToLlmFieldGroup()
+        }
+        canvas.onRepaint = { minimapPanel.refresh() }
 
         document?.addDocumentListener(docListener)
 
@@ -120,17 +143,20 @@ class FlaiPipelineFileEditor(
     }
 
     private fun buildUI() {
-        val toolbar = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2))
+        // Toolbar
+        val toolbar = JPanel(FlowLayout(FlowLayout.LEFT, 6, 4))
+        toolbar.preferredSize = Dimension(Int.MAX_VALUE, 38)
         applyBtn.addActionListener { onApply() }
         autoLayoutBtn.addActionListener { onAutoLayout() }
         fitBtn.addActionListener { canvas.resetTransform() }
         runBtn.addActionListener { onRun() }
         cancelBtn.addActionListener { service.cancelRun() }
         toolbar.add(applyBtn)
-        toolbar.add(autoLayoutBtn)
-        toolbar.add(fitBtn)
         toolbar.add(runBtn)
         toolbar.add(cancelBtn)
+        toolbar.add(JSeparator(JSeparator.VERTICAL).apply { preferredSize = Dimension(1, 24) })
+        toolbar.add(autoLayoutBtn)
+        toolbar.add(fitBtn)
 
         val topBar = JPanel(BorderLayout())
         topBar.add(toolbar, BorderLayout.WEST)
@@ -140,6 +166,8 @@ class FlaiPipelineFileEditor(
         statusPanel.add(errorBanner)
         statusPanel.add(savedBanner)
         topBar.add(statusPanel, BorderLayout.CENTER)
+        // Separator line below toolbar
+        topBar.add(JSeparator(JSeparator.HORIZONTAL), BorderLayout.SOUTH)
 
         val saveAction = object : AnAction() {
             override fun actionPerformed(e: AnActionEvent) { onApply() }
@@ -149,14 +177,75 @@ class FlaiPipelineFileEditor(
             rootPanel,
         )
 
+        // Wrap canvas in JLayeredPane so overlay controls can sit on top
+        val canvasLayer = JLayeredPane()
+        canvas.setBounds(0, 0, 800, 600)
+        canvasLayer.add(canvas, JLayeredPane.DEFAULT_LAYER)
+
+        // Transparent overlay for zoom buttons and minimap
+        val overlay = JPanel(null).apply { isOpaque = false }
+        canvasLayer.add(overlay, JLayeredPane.PALETTE_LAYER)
+
+        // Wire up zoom control buttons
+        zoomInBtn.addActionListener { canvas.zoomIn() }
+        zoomOutBtn.addActionListener { canvas.zoomOut() }
+        resetZoomBtn.addActionListener { if (!canvas.zoomLocked) { canvas.resetTransform() } }
+        lockZoomBtn.addActionListener {
+            canvas.zoomLocked = lockZoomBtn.isSelected
+            lockZoomBtn.text = if (canvas.zoomLocked) "🔒" else "🔓"
+            lockZoomBtn.toolTipText = if (canvas.zoomLocked) "Unlock zoom" else "Lock zoom"
+            zoomInBtn.isEnabled = !canvas.zoomLocked
+            zoomOutBtn.isEnabled = !canvas.zoomLocked
+            resetZoomBtn.isEnabled = !canvas.zoomLocked
+        }
+
+        val zoomPanel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            add(zoomInBtn)
+            add(Box.createVerticalStrut(2))
+            add(zoomOutBtn)
+            add(Box.createVerticalStrut(2))
+            add(resetZoomBtn)
+            add(Box.createVerticalStrut(2))
+            add(lockZoomBtn)
+        }
+
+        // Position zoom controls top-right and minimap bottom-left in overlay
+        fun repositionOverlayChildren() {
+            val w = canvasLayer.width
+            val h = canvasLayer.height
+            overlay.setBounds(0, 0, w, h)
+            val zw = 40
+            val zh = 140
+            zoomPanel.setBounds(w - zw - 6, 8, zw, zh)
+            minimapPanel.setBounds(6, h - minimapPanel.preferredSize.height - 6,
+                minimapPanel.preferredSize.width, minimapPanel.preferredSize.height)
+        }
+
+        overlay.add(zoomPanel)
+        overlay.add(minimapPanel)
+
+        canvasLayer.addComponentListener(object : ComponentAdapter() {
+            override fun componentResized(e: ComponentEvent) {
+                canvas.setBounds(0, 0, canvasLayer.width, canvasLayer.height)
+                repositionOverlayChildren()
+            }
+        })
+
+        val initialProportion = if (palettePanel.isCollapsed) 0.06f else 0.18f
         val centerSplit = OnePixelSplitter(false, 0.75f).apply {
-            firstComponent = canvas
+            firstComponent = canvasLayer
             secondComponent = propertyPanel
         }
 
-        val mainSplit = OnePixelSplitter(false, 0.13f).apply {
+        mainSplit = OnePixelSplitter(false, initialProportion).apply {
             firstComponent = palettePanel
             secondComponent = centerSplit
+        }
+
+        palettePanel.onCollapseToggled = { collapsed ->
+            mainSplit.proportion = if (collapsed) 0.06f else 0.18f
         }
 
         rootPanel.add(topBar, BorderLayout.NORTH)
