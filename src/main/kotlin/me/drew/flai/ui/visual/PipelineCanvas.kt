@@ -607,9 +607,10 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         // Output ports (right edge)
         val outputPorts = node.gate.outputPorts()
         val outCount = outputPorts.size
-        for ((i, _) in outputPorts.withIndex()) {
-            val portY = y + NODE_HEIGHT / 2 + (i - (outCount - 1) / 2.0).toInt() * (PORT_RADIUS * 2 + 4)
-            drawPort(g2, x + NODE_WIDTH, portY, true, isNodeActive)
+        for ((i, portName) in outputPorts.withIndex()) {
+            val portY = outputPortY(y, i, outCount)
+            val portColor = logicBranchColor(node.gate, portName)
+            drawPort(g2, x + NODE_WIDTH, portY, true, isNodeActive, portColor)
         }
     }
 
@@ -628,19 +629,30 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         g2.fillPolygon(xPts, yPts, pts * 2)
     }
 
-    private fun drawPort(g2: Graphics2D, cx: Int, cy: Int, isOutput: Boolean, isNodeActive: Boolean = false) {
+    private fun drawPort(g2: Graphics2D, cx: Int, cy: Int, isOutput: Boolean, isNodeActive: Boolean = false, color: Color? = null) {
         val r = PORT_RADIUS
-        // Glow ring when node is selected/hovered
+        val portColor = color ?: if (isOutput) FlaiEditorTheme.PORT_OUTPUT else FlaiEditorTheme.PORT_INPUT
         if (isNodeActive) {
-            g2.color = if (isOutput) Color(60, 190, 90, 80) else Color(110, 130, 190, 80)
+            g2.color = Color(portColor.red, portColor.green, portColor.blue, 80)
             val glowR = r + 3
             g2.fillOval(cx - glowR, cy - glowR, glowR * 2, glowR * 2)
         }
-        g2.color = if (isOutput) FlaiEditorTheme.PORT_OUTPUT else FlaiEditorTheme.PORT_INPUT
+        g2.color = portColor
         g2.fillOval(cx - r, cy - r, r * 2, r * 2)
         g2.color = JBColor(Color(60, 60, 60), Color(180, 180, 180))
         g2.stroke = BasicStroke(1f)
         g2.drawOval(cx - r, cy - r, r * 2, r * 2)
+    }
+
+    private fun outputPortY(nodeY: Int, i: Int, outCount: Int): Int {
+        val spacing = PORT_RADIUS * 2 + 4
+        return nodeY + NODE_HEIGHT / 2 + i * spacing - (outCount - 1) * spacing / 2
+    }
+
+    private fun logicBranchColor(gate: Gate, portName: String): Color? {
+        if (gate !is LogicGate) return null
+        val branchIndex = gate.branches.indexOfFirst { it.port == portName }
+        return if (branchIndex >= 0) FlaiEditorTheme.branchColor(branchIndex) else FlaiEditorTheme.BRANCH_DEFAULT_COLOR
     }
 
     private fun drawStatusBadge(g2: Graphics2D, cx: Int, cy: Int, status: GateStatus) {
@@ -675,9 +687,14 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         val isActive = isSelected ||
             fromNode.nodeSeq == selectedNodeSeq || toNode.nodeSeq == selectedNodeSeq ||
             fromNode.nodeSeq == hoveredNodeSeq || toNode.nodeSeq == hoveredNodeSeq
+        val branchColor = logicBranchColor(fromNode.gate, edge.fromPort)
         g2.stroke = BasicStroke(if (isSelected) 2.5f else 1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
         g2.color = when {
             isSelected -> JBColor(Color(0, 100, 220), Color(100, 160, 255))
+            branchColor != null -> {
+                val alpha = if (isActive) 220 else 160
+                Color(branchColor.red, branchColor.green, branchColor.blue, alpha)
+            }
             isActive -> JBColor(Color(110, 130, 200), Color(160, 180, 240))
             else -> JBColor(Color(80, 80, 80), Color(150, 150, 150))
         }
@@ -697,8 +714,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     private fun outputPortCenter(node: VisualNode, port: String): Point2D.Double {
         val ports = node.gate.outputPorts()
         val i = ports.indexOf(port).coerceAtLeast(0)
-        val outCount = ports.size
-        val cy = node.y + NODE_HEIGHT / 2 + (i - (outCount - 1) / 2.0).toInt() * (PORT_RADIUS * 2 + 4)
+        val cy = outputPortY(node.y, i, ports.size)
         return Point2D.Double((node.x + NODE_WIDTH).toDouble(), cy.toDouble())
     }
 
@@ -731,7 +747,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
             val outCount = ports.size
             for ((i, portName) in ports.withIndex()) {
                 val cx = node.x + NODE_WIDTH
-                val cy = node.y + NODE_HEIGHT / 2 + (i - (outCount - 1) / 2.0).toInt() * (PORT_RADIUS * 2 + 4)
+                val cy = outputPortY(node.y, i, outCount)
                 if (dist(mx, my, cx, cy) <= PORT_RADIUS + 4) {
                     return Pair(node.nodeSeq, portName)
                 }
@@ -912,10 +928,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                 }
             }
             val outputPorts = node.gate.outputPorts()
-            val outCount = outputPorts.size
             for ((i, portName) in outputPorts.withIndex()) {
                 val cx = node.x + NODE_WIDTH
-                val cy = node.y + NODE_HEIGHT / 2 + (i - (outCount - 1) / 2.0).toInt() * (PORT_RADIUS * 2 + 4)
+                val cy = outputPortY(node.y, i, outputPorts.size)
                 if (dist(mx, my, cx, cy) <= PORT_RADIUS + 4) {
                     return "Output: $portName"
                 }

@@ -6,6 +6,8 @@ import me.drew.flai.domain.model.*
 import me.drew.flai.infrastructure.tool.IdeToolRegistry
 import java.awt.*
 import javax.swing.*
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import javax.swing.table.DefaultTableModel
 
 class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(BorderLayout()) {
@@ -252,11 +254,52 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
     }
 
     private fun buildLogicGateFields(nodeSeq: Int, gate: LogicGate) {
-        val basicExtra = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
-        basicExtra.add(labeledRow("Default Port", buildTextField(gate.defaultPort ?: "default") { v ->
-            updateGate(nodeSeq, gate.copy(defaultPort = v))
-        }))
-        innerPanel.add(basicExtra)
+        val hasDefault = gate.defaultPort != null
+        val defaultPortField = JTextField(gate.defaultPort ?: "default")
+        defaultPortField.isEnabled = hasDefault && isEditable
+        defaultPortField.document.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent) = save()
+            override fun removeUpdate(e: DocumentEvent) = save()
+            override fun changedUpdate(e: DocumentEvent) = save()
+            fun save() {
+                val current = currentModel?.nodeBySeq(nodeSeq)?.gate as? LogicGate ?: return
+                updateGate(nodeSeq, current.copy(defaultPort = defaultPortField.text.ifEmpty { null }))
+            }
+        })
+        val defaultPortCheck = JCheckBox().apply {
+            isSelected = hasDefault
+            addActionListener {
+                val enabled = isSelected
+                defaultPortField.isEnabled = enabled && isEditable
+                val current = currentModel?.nodeBySeq(nodeSeq)?.gate as? LogicGate ?: return@addActionListener
+                if (enabled) {
+                    val name = defaultPortField.text.ifEmpty { "default" }
+                    defaultPortField.text = name
+                    updateGate(nodeSeq, current.copy(defaultPort = name))
+                } else {
+                    updateGate(nodeSeq, current.copy(defaultPort = null))
+                }
+                canvas?.repaint()
+            }
+        }
+        editableComponents.add(defaultPortCheck)
+
+        val defaultPortRow = JPanel(BorderLayout(4, 0)).apply {
+            add(JLabel("Default Port:").apply {
+                preferredSize = Dimension(110, 32)
+                font = this.font.deriveFont(Font.PLAIN, 12f)
+            }, BorderLayout.WEST)
+            add(JPanel().apply {
+                layout = BoxLayout(this, BoxLayout.X_AXIS)
+                add(defaultPortCheck)
+                add(Box.createHorizontalStrut(4))
+                add(defaultPortField)
+            }, BorderLayout.CENTER)
+            maximumSize = Dimension(Int.MAX_VALUE, 32)
+        }
+        val settingsContent = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        settingsContent.add(defaultPortRow)
+        innerPanel.add(cardPanel("Logic Settings", settingsContent))
 
         val branchesHolder = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
         val branchesCard = cardPanel("Branches", branchesHolder)
@@ -265,8 +308,11 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
         fun rebuildBranches(branches: List<Branch>) {
             branchesHolder.removeAll()
             branches.forEachIndexed { i, branch ->
+                val branchColor = FlaiEditorTheme.branchColor(i)
                 val branchPanel = JPanel(GridBagLayout()).apply {
-                    border = BorderFactory.createTitledBorder("Branch ${i + 1}")
+                    val titledBorder = BorderFactory.createTitledBorder("Branch ${i + 1}") as javax.swing.border.TitledBorder
+                    titledBorder.titleColor = branchColor
+                    border = titledBorder
                 }
                 val gbc = GridBagConstraints().apply {
                     insets = Insets(2, 2, 2, 2); fill = GridBagConstraints.HORIZONTAL; weightx = 1.0

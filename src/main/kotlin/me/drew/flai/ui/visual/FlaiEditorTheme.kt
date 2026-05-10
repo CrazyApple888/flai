@@ -28,6 +28,16 @@ object FlaiEditorTheme {
     val PORT_INPUT: JBColor = JBColor(Color(100, 115, 160), Color(110, 130, 190))
     val PORT_OUTPUT: JBColor = JBColor(Color(60, 170, 90), Color(60, 190, 90))
 
+    val BRANCH_COLORS: Array<JBColor> = arrayOf(
+        JBColor(Color(50, 160, 220), Color(60, 180, 240)),
+        JBColor(Color(220, 75, 75), Color(240, 95, 95)),
+        JBColor(Color(130, 85, 220), Color(150, 105, 240)),
+        JBColor(Color(200, 145, 35), Color(220, 165, 55)),
+    )
+    val BRANCH_DEFAULT_COLOR: JBColor = JBColor(Color(140, 140, 140), Color(170, 170, 170))
+
+    fun branchColor(index: Int): JBColor = BRANCH_COLORS[index % BRANCH_COLORS.size]
+
     fun accentFor(gate: Gate): Color = when (gate) {
         is InputGate -> INPUT
         is OutputGate -> OUTPUT
