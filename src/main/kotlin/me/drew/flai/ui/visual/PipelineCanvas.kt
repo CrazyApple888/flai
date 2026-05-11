@@ -610,7 +610,8 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         for ((i, portName) in outputPorts.withIndex()) {
             val portY = outputPortY(y, i, outCount)
             val portColor = logicBranchColor(node.gate, portName)
-            drawPort(g2, x + NODE_WIDTH, portY, true, isNodeActive, portColor)
+            val portLabel = logicPortLabel(node.gate, portName)
+            drawPort(g2, x + NODE_WIDTH, portY, true, isNodeActive, portColor, portLabel)
         }
     }
 
@@ -629,7 +630,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         g2.fillPolygon(xPts, yPts, pts * 2)
     }
 
-    private fun drawPort(g2: Graphics2D, cx: Int, cy: Int, isOutput: Boolean, isNodeActive: Boolean = false, color: Color? = null) {
+    private fun drawPort(g2: Graphics2D, cx: Int, cy: Int, isOutput: Boolean, isNodeActive: Boolean = false, color: Color? = null, label: String? = null) {
         val r = PORT_RADIUS
         val portColor = color ?: if (isOutput) FlaiEditorTheme.PORT_OUTPUT else FlaiEditorTheme.PORT_INPUT
         if (isNodeActive) {
@@ -642,6 +643,14 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         g2.color = JBColor(Color(60, 60, 60), Color(180, 180, 180))
         g2.stroke = BasicStroke(1f)
         g2.drawOval(cx - r, cy - r, r * 2, r * 2)
+        if (label != null) {
+            val savedFont = g2.font
+            g2.font = Font(Font.SANS_SERIF, Font.BOLD, 7)
+            val fm = g2.fontMetrics
+            g2.color = Color.WHITE
+            g2.drawString(label, cx - fm.stringWidth(label) / 2, cy + fm.ascent / 2 - 1)
+            g2.font = savedFont
+        }
     }
 
     private fun outputPortY(nodeY: Int, i: Int, outCount: Int): Int {
@@ -653,6 +662,12 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         if (gate !is LogicGate) return null
         val branchIndex = gate.branches.indexOfFirst { it.port == portName }
         return if (branchIndex >= 0) FlaiEditorTheme.branchColor(branchIndex) else FlaiEditorTheme.BRANCH_DEFAULT_COLOR
+    }
+
+    private fun logicPortLabel(gate: Gate, portName: String): String? {
+        if (gate !is LogicGate) return null
+        val branchIndex = gate.branches.indexOfFirst { it.port == portName }
+        return if (branchIndex >= 0) "${branchIndex + 1}" else "D"
     }
 
     private fun drawStatusBadge(g2: Graphics2D, cx: Int, cy: Int, status: GateStatus) {
