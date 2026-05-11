@@ -116,15 +116,17 @@ class FlaiPipelineFileEditor(
             getCanvasSize = { Dimension(canvas.width, canvas.height) },
         )
 
-        canvas.onNodeSelected = { node -> propertyPanel.showGate(node, model, canvas) }
-        canvas.onLlmStarClicked = { node ->
-            if (canvas.getSelectedNode()?.nodeSeq != node.nodeSeq) {
-                canvas.onNodeSelected(node)
+        canvas.setListener(object : PipelineCanvasListener {
+            override fun onNodeSelected(node: VisualNode?) {
                 propertyPanel.showGate(node, model, canvas)
             }
-            propertyPanel.scrollToLlmFieldGroup()
-        }
-        canvas.onRepaint = { minimapPanel.refresh() }
+            override fun onLlmStarClicked(node: VisualNode) {
+                propertyPanel.scrollToLlmFieldGroup()
+            }
+            override fun onRepaint() {
+                minimapPanel.refresh()
+            }
+        })
 
         document?.addDocumentListener(docListener)
 
@@ -189,14 +191,15 @@ class FlaiPipelineFileEditor(
         // Wire up zoom control buttons
         zoomInBtn.addActionListener { canvas.zoomIn() }
         zoomOutBtn.addActionListener { canvas.zoomOut() }
-        resetZoomBtn.addActionListener { if (!canvas.zoomLocked) { canvas.resetTransform() } }
+        resetZoomBtn.addActionListener { if (!lockZoomBtn.isSelected) { canvas.resetTransform() } }
         lockZoomBtn.addActionListener {
-            canvas.zoomLocked = lockZoomBtn.isSelected
-            lockZoomBtn.text = if (canvas.zoomLocked) "🔒" else "🔓"
-            lockZoomBtn.toolTipText = if (canvas.zoomLocked) "Unlock zoom" else "Lock zoom"
-            zoomInBtn.isEnabled = !canvas.zoomLocked
-            zoomOutBtn.isEnabled = !canvas.zoomLocked
-            resetZoomBtn.isEnabled = !canvas.zoomLocked
+            val locked = lockZoomBtn.isSelected
+            canvas.setZoomLocked(locked)
+            lockZoomBtn.text = if (locked) "🔒" else "🔓"
+            lockZoomBtn.toolTipText = if (locked) "Unlock zoom" else "Lock zoom"
+            zoomInBtn.isEnabled = !locked
+            zoomOutBtn.isEnabled = !locked
+            resetZoomBtn.isEnabled = !locked
         }
 
         val zoomPanel = JPanel().apply {
@@ -244,7 +247,7 @@ class FlaiPipelineFileEditor(
             secondComponent = centerSplit
         }
 
-        palettePanel.onCollapseToggled = { collapsed ->
+        palettePanel.setOnCollapseToggled { collapsed ->
             mainSplit.proportion = if (collapsed) 0.06f else 0.18f
         }
 
@@ -257,16 +260,7 @@ class FlaiPipelineFileEditor(
         try {
             val pipeline = parser.parse(text)
             val newModel = VisualPipelineModel.fromPipeline(pipeline, layoutStore.load())
-            // Transfer nodes/edges/metadata from newModel into existing model
-            model.nodes.clear()
-            model.edges.clear()
-            newModel.nodes.forEach { model.nodes.add(it) }
-            newModel.edges.forEach { model.edges.add(it) }
-            model.pipelineId = newModel.pipelineId
-            model.pipelineName = newModel.pipelineName
-            model.pipelineDescription = newModel.pipelineDescription
-            model.entryNodeSeq = newModel.entryNodeSeq
-            model.isDirty = false
+            model.replaceWith(newModel)
             model.clearHistory()
             canvas.repaint()
             showError(null)
@@ -310,7 +304,7 @@ class FlaiPipelineFileEditor(
 
         val positions = model.nodes.associate { it.gateId to GatePosition(it.x, it.y) }
         layoutStore.save(positions)
-        model.isDirty = false
+        model.clearDirty()
         pcs.firePropertyChange("modified", null, null)
         showSavedInformer()
     }
@@ -354,9 +348,9 @@ class FlaiPipelineFileEditor(
     private fun setEditingEnabled(enabled: Boolean) {
         applyBtn.isEnabled = enabled
         autoLayoutBtn.isEnabled = enabled
-        canvas.isEditable = enabled
-        propertyPanel.isEditable = enabled
-        palettePanel.isEditable = enabled
+        canvas.setEditable(enabled)
+        propertyPanel.setEditable(enabled)
+        palettePanel.setEditable(enabled)
         runBtn.isVisible = enabled
         cancelBtn.isVisible = !enabled
     }
@@ -380,7 +374,7 @@ class FlaiPipelineFileEditor(
                     for (row in rows) {
                         statusMap[row.gateName] = row.status
                     }
-                    canvas.executionStatus = statusMap
+                    canvas.updateExecutionStatus(statusMap)
                 }
             }.collect()
         }

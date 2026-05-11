@@ -7,13 +7,35 @@ import org.junit.Test
 class VisualPipelineValidatorTest {
 
     private fun makeValidModel(): VisualPipelineModel {
-        val model = VisualPipelineModel()
-        model.pipelineId = "test"
-        model.pipelineName = "Test"
         val gate = InputGate(id = GateId("start"), label = "Start")
-        val node = model.addNode(gate, 0, 0)
-        model.entryNodeSeq = node.nodeSeq
-        model.isDirty = false
+        val pipeline = Pipeline(
+            id = PipelineId("test"),
+            name = "Test",
+            gates = mapOf(GateId("start") to gate),
+            edges = emptyList(),
+            entryGateId = GateId("start"),
+        )
+        return VisualPipelineModel.fromPipeline(pipeline)
+    }
+
+    private fun makeEmptyIdModel(): VisualPipelineModel {
+        val gate = InputGate(id = GateId("start"), label = "Start")
+        val pipeline = Pipeline(
+            id = PipelineId(""),
+            name = "Test",
+            gates = mapOf(GateId("start") to gate),
+            edges = emptyList(),
+            entryGateId = GateId("start"),
+        )
+        return VisualPipelineModel.fromPipeline(pipeline)
+    }
+
+    private fun makeNoEntryModel(): VisualPipelineModel {
+        // Build a model with a valid pipeline then clear the entry
+        val gate = InputGate(id = GateId("start"), label = "Start")
+        val model = VisualPipelineModel()
+        model.addNode(gate, 0, 0)
+        // Don't set entry — entryNodeSeq defaults to -1
         return model
     }
 
@@ -27,8 +49,7 @@ class VisualPipelineValidatorTest {
 
     @Test
     fun `missing pipeline id produces error`() {
-        val model = makeValidModel()
-        model.pipelineId = ""
+        val model = makeEmptyIdModel()
         val result = VisualPipelineValidator.validate(model)
         assertFalse(result.isValid)
         assertTrue(result.errors.any { it.field == "id" && it.gateId == "(pipeline)" })
@@ -36,8 +57,7 @@ class VisualPipelineValidatorTest {
 
     @Test
     fun `missing entry gate produces error`() {
-        val model = makeValidModel()
-        model.entryNodeSeq = -1
+        val model = makeNoEntryModel()
         val result = VisualPipelineValidator.validate(model)
         assertFalse(result.isValid)
         assertTrue(result.errors.any { it.field == "entry" && it.gateId == "(pipeline)" })
@@ -187,8 +207,8 @@ class VisualPipelineValidatorTest {
     fun `EC-10 edge referencing non-existent gate produces error`() {
         val model = makeValidModel()
         val inputNode = model.nodes[0]
-        // Add a dangling edge referencing a node seq that doesn't exist
-        model.edges.add(VisualEdge(fromSeq = inputNode.nodeSeq, toSeq = 9999))
+        // Add an edge via addEdge to a nonexistent seq
+        model.addEdge(VisualEdge(fromSeq = inputNode.nodeSeq, fromPort = "out", toSeq = 9999))
         val result = VisualPipelineValidator.validate(model)
         assertFalse(result.isValid)
         assertTrue(result.errors.any { it.field == "to" })
@@ -201,7 +221,7 @@ class VisualPipelineValidatorTest {
         val outputGate = OutputGate(id = GateId("end"), label = "End")
         val outputNode = model.addNode(outputGate, 200, 0)
         // InputGate output ports = ["out"], so "nonexistent" is invalid
-        model.edges.add(VisualEdge(fromSeq = inputNode.nodeSeq, fromPort = "nonexistent", toSeq = outputNode.nodeSeq))
+        model.addEdge(VisualEdge(fromSeq = inputNode.nodeSeq, fromPort = "nonexistent", toSeq = outputNode.nodeSeq))
         val result = VisualPipelineValidator.validate(model)
         assertFalse(result.isValid)
         assertTrue(result.errors.any { it.field == "fromPort" && it.gateId == "start" })

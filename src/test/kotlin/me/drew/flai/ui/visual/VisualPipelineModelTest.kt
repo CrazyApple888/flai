@@ -7,19 +7,14 @@ import org.junit.Test
 class VisualPipelineModelTest {
 
     private fun makeModel(vararg gates: Gate): VisualPipelineModel {
-        val model = VisualPipelineModel()
-        model.pipelineId = "test"
-        model.pipelineName = "Test"
-        var x = 0
-        for (gate in gates) {
-            val node = model.addNode(gate, x, 0)
-            x += 200
-        }
-        if (gates.isNotEmpty()) {
-            model.entryNodeSeq = model.nodes[0].nodeSeq
-        }
-        model.isDirty = false
-        return model
+        val pipeline = Pipeline(
+            id = PipelineId("test"),
+            name = "Test",
+            gates = gates.associate { GateId(it.id.value) to it },
+            edges = emptyList(),
+            entryGateId = if (gates.isNotEmpty()) GateId(gates[0].id.value) else GateId(""),
+        )
+        return VisualPipelineModel.fromPipeline(pipeline)
     }
 
     private fun inputGate(id: String) = InputGate(id = GateId(id), label = id)
@@ -118,7 +113,7 @@ class VisualPipelineModelTest {
     @Test
     fun `toPipeline uses entry gate from entryNodeSeq`() {
         val model = makeModel(inputGate("start"), outputGate("end"))
-        model.entryNodeSeq = model.nodes[0].nodeSeq
+        model.setEntry(model.nodes[0].nodeSeq)
 
         val pipeline = model.toPipeline()
         assertEquals("start", pipeline.entryGateId.value)
@@ -127,7 +122,6 @@ class VisualPipelineModelTest {
     @Test
     fun `addNode sets isDirty`() {
         val model = VisualPipelineModel()
-        model.isDirty = false
         model.addNode(inputGate("g1"), 0, 0)
         assertTrue(model.isDirty)
     }
@@ -136,7 +130,7 @@ class VisualPipelineModelTest {
     fun `moveNode updates position and sets isDirty`() {
         val model = makeModel(inputGate("g1"))
         val seq = model.nodes[0].nodeSeq
-        model.isDirty = false
+        model.clearDirty()
         model.moveNode(seq, 100, 200)
         assertEquals(100, model.nodeBySeq(seq)!!.x)
         assertEquals(200, model.nodeBySeq(seq)!!.y)
@@ -147,7 +141,7 @@ class VisualPipelineModelTest {
     fun `updateGate replaces gate and updates gateId`() {
         val model = makeModel(inputGate("g1"))
         val seq = model.nodes[0].nodeSeq
-        model.isDirty = false
+        model.clearDirty()
         val newGate = outputGate("g1")
         model.updateGate(seq, newGate)
         assertTrue(model.nodeBySeq(seq)!!.gate is OutputGate)
@@ -184,7 +178,7 @@ class VisualPipelineModelTest {
     fun `removeNode clears entryNodeSeq when entry gate is removed`() {
         val model = makeModel(inputGate("g1"), outputGate("g2"))
         val g1Seq = model.nodes[0].nodeSeq
-        model.entryNodeSeq = g1Seq
+        model.setEntry(g1Seq)
 
         model.removeNode(g1Seq)
 

@@ -11,27 +11,44 @@ sealed class UndoableEdit {
 
 class VisualPipelineModel {
     var pipelineId: String = ""
+        private set
     var pipelineName: String = ""
+        private set
     var pipelineDescription: String = ""
+        private set
     var entryNodeSeq: Int = -1
+        private set
 
-    val nodes: MutableList<VisualNode> = mutableListOf()
-    val edges: MutableList<VisualEdge> = mutableListOf()
+    private val _nodes: MutableList<VisualNode> = mutableListOf()
+    private val _edges: MutableList<VisualEdge> = mutableListOf()
+
+    val nodes: List<VisualNode> get() = _nodes
+    val edges: List<VisualEdge> get() = _edges
 
     var isDirty: Boolean = false
+        private set
 
     private val undoStack: ArrayDeque<UndoableEdit> = ArrayDeque()
     private var nextSeq: Int = 0
     fun nextNodeSeq(): Int = nextSeq++
 
-    fun nodeBySeq(seq: Int): VisualNode? = nodes.firstOrNull { it.nodeSeq == seq }
+    fun clearDirty() {
+        isDirty = false
+    }
 
-    fun nodeByGateId(id: String): VisualNode? = nodes.firstOrNull { it.gateId == id }
+    fun setEntry(seq: Int) {
+        entryNodeSeq = seq
+        isDirty = true
+    }
+
+    fun nodeBySeq(seq: Int): VisualNode? = _nodes.firstOrNull { it.nodeSeq == seq }
+
+    fun nodeByGateId(id: String): VisualNode? = _nodes.firstOrNull { it.gateId == id }
 
     fun addNode(gate: Gate, x: Int, y: Int): VisualNode {
         val seq = nextNodeSeq()
         val node = VisualNode(nodeSeq = seq, gateId = gate.id.value, gate = gate, x = x, y = y)
-        nodes.add(node)
+        _nodes.add(node)
         undoStack.addLast(UndoableEdit.NodeAdded(node))
         isDirty = true
         return node
@@ -39,10 +56,10 @@ class VisualPipelineModel {
 
     fun removeNode(seq: Int) {
         val node = nodeBySeq(seq) ?: return
-        val removedEdges = edges.filter { it.fromSeq == seq || it.toSeq == seq }
+        val removedEdges = _edges.filter { it.fromSeq == seq || it.toSeq == seq }
         val wasEntry = entryNodeSeq == seq
-        nodes.removeAll { it.nodeSeq == seq }
-        edges.removeAll { it.fromSeq == seq || it.toSeq == seq }
+        _nodes.removeAll { it.nodeSeq == seq }
+        _edges.removeAll { it.fromSeq == seq || it.toSeq == seq }
         if (wasEntry) {
             entryNodeSeq = -1
         }
@@ -53,33 +70,33 @@ class VisualPipelineModel {
     /** Returns false if newId is empty or already used by another gate. */
     fun renameGateId(seq: Int, newId: String): Boolean {
         if (newId.isEmpty()) return false
-        if (nodes.any { it.nodeSeq != seq && it.gateId == newId }) return false
-        val node = nodeBySeq(seq) ?: return false
-        val oldId = node.gateId
-        node.gateId = newId
-        // Rebuild gate with new id
-        node.gate = rebuildGateWithId(node.gate, GateId(newId))
+        if (_nodes.any { it.nodeSeq != seq && it.gateId == newId }) return false
+        val idx = _nodes.indexOfFirst { it.nodeSeq == seq }
+        if (idx < 0) return false
+        val node = _nodes[idx]
+        val rebuiltGate = rebuildGateWithId(node.gate, GateId(newId))
+        _nodes[idx] = node.copy(gateId = newId, gate = rebuiltGate)
         isDirty = true
         return true
     }
 
     /** Returns false if duplicate edge. */
     fun addEdge(edge: VisualEdge): Boolean {
-        val duplicate = edges.any {
+        val duplicate = _edges.any {
             it.fromSeq == edge.fromSeq &&
                 it.fromPort == edge.fromPort &&
                 it.toSeq == edge.toSeq &&
                 it.toPort == edge.toPort
         }
         if (duplicate) return false
-        edges.add(edge)
+        _edges.add(edge)
         undoStack.addLast(UndoableEdit.EdgeAdded(edge))
         isDirty = true
         return true
     }
 
     fun removeEdge(edge: VisualEdge) {
-        val removed = edges.removeAll {
+        val removed = _edges.removeAll {
             it.fromSeq == edge.fromSeq &&
                 it.fromPort == edge.fromPort &&
                 it.toSeq == edge.toSeq &&
@@ -95,23 +112,27 @@ class VisualPipelineModel {
         val edit = undoStack.removeLastOrNull() ?: return false
         when (edit) {
             is UndoableEdit.NodeAdded -> {
-                nodes.removeAll { it.nodeSeq == edit.node.nodeSeq }
-                edges.removeAll { it.fromSeq == edit.node.nodeSeq || it.toSeq == edit.node.nodeSeq }
-                if (entryNodeSeq == edit.node.nodeSeq) entryNodeSeq = -1
+                _nodes.removeAll { it.nodeSeq == edit.node.nodeSeq }
+                _edges.removeAll { it.fromSeq == edit.node.nodeSeq || it.toSeq == edit.node.nodeSeq }
+                if (entryNodeSeq == edit.node.nodeSeq) {
+                    entryNodeSeq = -1
+                }
             }
             is UndoableEdit.NodeRemoved -> {
-                nodes.add(edit.node)
-                edges.addAll(edit.removedEdges)
-                if (edit.wasEntry) entryNodeSeq = edit.node.nodeSeq
+                _nodes.add(edit.node)
+                _edges.addAll(edit.removedEdges)
+                if (edit.wasEntry) {
+                    entryNodeSeq = edit.node.nodeSeq
+                }
             }
             is UndoableEdit.EdgeAdded -> {
-                edges.removeAll {
+                _edges.removeAll {
                     it.fromSeq == edit.edge.fromSeq && it.fromPort == edit.edge.fromPort &&
                         it.toSeq == edit.edge.toSeq && it.toPort == edit.edge.toPort
                 }
             }
             is UndoableEdit.EdgeRemoved -> {
-                edges.add(edit.edge)
+                _edges.add(edit.edge)
             }
         }
         isDirty = true
@@ -123,24 +144,37 @@ class VisualPipelineModel {
     }
 
     fun moveNode(seq: Int, x: Int, y: Int) {
-        val node = nodeBySeq(seq) ?: return
-        node.x = x
-        node.y = y
+        val idx = _nodes.indexOfFirst { it.nodeSeq == seq }
+        if (idx < 0) return
+        _nodes[idx] = _nodes[idx].copy(x = x, y = y)
         isDirty = true
     }
 
     fun updateGate(seq: Int, gate: Gate) {
-        val node = nodeBySeq(seq) ?: return
-        node.gate = gate
-        node.gateId = gate.id.value
+        val idx = _nodes.indexOfFirst { it.nodeSeq == seq }
+        if (idx < 0) return
+        _nodes[idx] = _nodes[idx].copy(gate = gate, gateId = gate.id.value)
         isDirty = true
     }
 
+    fun replaceWith(other: VisualPipelineModel) {
+        _nodes.clear()
+        _nodes.addAll(other._nodes)
+        _edges.clear()
+        _edges.addAll(other._edges)
+        pipelineId = other.pipelineId
+        pipelineName = other.pipelineName
+        pipelineDescription = other.pipelineDescription
+        entryNodeSeq = other.entryNodeSeq
+        isDirty = other.isDirty
+        nextSeq = other.nextSeq
+    }
+
     fun toPipeline(): Pipeline {
-        val gatesMap = nodes.associate { node ->
+        val gatesMap = _nodes.associate { node ->
             GateId(node.gateId) to node.gate
         }
-        val pipelineEdges = edges.mapNotNull { edge ->
+        val pipelineEdges = _edges.mapNotNull { edge ->
             val fromNode = nodeBySeq(edge.fromSeq) ?: return@mapNotNull null
             val toNode = nodeBySeq(edge.toSeq) ?: return@mapNotNull null
             PipelineEdge(
@@ -151,7 +185,7 @@ class VisualPipelineModel {
             )
         }
         val entryNode = nodeBySeq(entryNodeSeq)
-        val entryGateId = GateId(entryNode?.gateId ?: (nodes.firstOrNull()?.gateId ?: ""))
+        val entryGateId = GateId(entryNode?.gateId ?: (_nodes.firstOrNull()?.gateId ?: ""))
         return Pipeline(
             id = PipelineId(pipelineId),
             name = pipelineName,

@@ -28,21 +28,24 @@ class GatePalettePanel(
     parentDisposable: Disposable,
 ) : JPanel(BorderLayout()) {
 
-    var isEditable: Boolean = true
-        set(value) {
-            field = value
-            searchField.isEnabled = value
-            collapseBtn.isEnabled = value
-            pillHolder.components.forEach { it.isEnabled = value }
-        }
+    private var isEditable: Boolean = true
 
-    var onCollapseToggled: ((Boolean) -> Unit) = {}
+    fun setEditable(value: Boolean) {
+        isEditable = value
+        searchField.isEnabled = value
+        collapseBtn.isEnabled = value
+        pillHolder.components.forEach { it.isEnabled = value }
+    }
+
+    private var onCollapseToggled: ((Boolean) -> Unit) = {}
+
+    fun setOnCollapseToggled(fn: (Boolean) -> Unit) { onCollapseToggled = fn }
 
     private var _isCollapsed: Boolean = PropertiesComponent.getInstance(project).getBoolean(persistKey(), false)
 
     var isCollapsed: Boolean
         get() = _isCollapsed
-        set(value) {
+        private set(value) {
             _isCollapsed = value
             PropertiesComponent.getInstance(project).setValue(persistKey(), value)
             searchField.isVisible = !value

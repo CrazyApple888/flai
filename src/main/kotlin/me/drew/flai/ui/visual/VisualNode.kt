@@ -4,10 +4,10 @@ import me.drew.flai.domain.model.Gate
 
 data class VisualNode(
     val nodeSeq: Int,
-    var gateId: String,
-    var gate: Gate,
-    var x: Int,
-    var y: Int,
+    val gateId: String,
+    val gate: Gate,
+    val x: Int,
+    val y: Int,
 )
 
 data class VisualEdge(

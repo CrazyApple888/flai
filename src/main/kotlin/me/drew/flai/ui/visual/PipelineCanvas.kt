@@ -14,27 +14,39 @@ import java.awt.geom.*
 import javax.swing.*
 import javax.swing.Timer
 
-private const val NODE_WIDTH = 140
-private const val NODE_HEIGHT = 60
-private const val PORT_RADIUS = 8
-private const val ARC = 12
+internal const val NODE_WIDTH = 140
+internal const val NODE_HEIGHT = 60
+internal const val PORT_RADIUS = 8
+internal const val ARC = 12
 private const val DRAG_THRESHOLD = 2
 private const val MIN_ZOOM = 0.3
 private const val MAX_ZOOM = 2.5
 
+interface PipelineCanvasListener {
+    fun onNodeSelected(node: VisualNode?)
+    fun onLlmStarClicked(node: VisualNode)
+    fun onRepaint()
+}
+
 class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
 
-    var isEditable: Boolean = true
-    var onNodeSelected: ((VisualNode?) -> Unit) = {}
-    var executionStatus: Map<String, GateStatus> = emptyMap()
-        set(value) {
-            field = value
-            updateAnimationTimer()
-        }
+    private var isEditable: Boolean = true
+    fun setEditable(value: Boolean) { isEditable = value }
 
-    var zoomLocked: Boolean = false
-    var onLlmStarClicked: ((VisualNode) -> Unit) = {}
-    var onRepaint: (() -> Unit) = {}
+    private var _listener: PipelineCanvasListener? = null
+    fun setListener(listener: PipelineCanvasListener) {
+        check(_listener == null) { "Listener already set" }
+        _listener = listener
+    }
+
+    private var executionStatus: Map<String, GateStatus> = emptyMap()
+    fun updateExecutionStatus(value: Map<String, GateStatus>) {
+        executionStatus = value
+        updateAnimationTimer()
+    }
+
+    private var zoomLocked: Boolean = false
+    fun setZoomLocked(value: Boolean) { zoomLocked = value }
 
     private var selectedNodeSeq: Int = -1
     private var selectedEdge: VisualEdge? = null
@@ -76,6 +88,8 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         repaint()
     }
 
+    private val renderer = CanvasRenderer()
+
     init {
         background = FlaiEditorTheme.CANVAS_BG
         isFocusable = true
@@ -113,9 +127,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                     if (selectedNodeSeq != llmStarNode.nodeSeq) {
                         selectedNodeSeq = llmStarNode.nodeSeq
                         selectedEdge = null
-                        onNodeSelected(llmStarNode)
+                        _listener?.onNodeSelected(llmStarNode)
                     }
-                    onLlmStarClicked(llmStarNode)
+                    _listener?.onLlmStarClicked(llmStarNode)
                     repaint()
                     return
                 }
@@ -129,7 +143,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                     dragStartX = e.x
                     dragStartY = e.y
                     isGhostDragging = false
-                    onNodeSelected(node)
+                    _listener?.onNodeSelected(node)
                     repaint()
                     return
                 }
@@ -139,7 +153,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                 if (edge != null) {
                     selectedEdge = edge
                     selectedNodeSeq = -1
-                    onNodeSelected(null)
+                    _listener?.onNodeSelected(null)
                     repaint()
                     return
                 }
@@ -147,7 +161,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                 // Pan
                 selectedNodeSeq = -1
                 selectedEdge = null
-                onNodeSelected(null)
+                _listener?.onNodeSelected(null)
                 isPanning = true
                 panStartX = e.x
                 panStartY = e.y
@@ -292,7 +306,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                     if (edge != null) {
                         model.removeEdge(edge)
                         selectedEdge = null
-                        onNodeSelected(null)
+                        _listener?.onNodeSelected(null)
                         repaint()
                         return
                     }
@@ -300,7 +314,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                     if (nodeSeq != -1) {
                         model.removeNode(nodeSeq)
                         selectedNodeSeq = -1
-                        onNodeSelected(null)
+                        _listener?.onNodeSelected(null)
                         repaint()
                     }
                 }
@@ -313,7 +327,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                 if (model.undo()) {
                     selectedNodeSeq = -1
                     selectedEdge = null
-                    onNodeSelected(null)
+                    _listener?.onNodeSelected(null)
                     repaint()
                 }
             }
@@ -416,52 +430,42 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         combined.concatenate(transform)
         g2.transform = combined
 
-        // Draw edges
-        for (edge in model.edges) {
-            drawEdge(g2, edge)
+        // Compute snapped ghost position for renderer
+        val ghostX = if (isGhostDragging && dragNodeSeq != -1) {
+            snapToGrid(originalNodeX + ghostDragOffsetX, FlaiEditorTheme.GRID_SIZE)
+        } else {
+            0
+        }
+        val ghostY = if (isGhostDragging && dragNodeSeq != -1) {
+            snapToGrid(originalNodeY + ghostDragOffsetY, FlaiEditorTheme.GRID_SIZE)
+        } else {
+            0
         }
 
-        // Draw nodes
-        for (node in model.nodes) {
-            drawNode(g2, node)
-        }
+        val edgeDragModelPt = inversePoint(edgeDragCurrentX, edgeDragCurrentY)
 
-        // Draw ghost overlay during node drag
-        if (isGhostDragging && dragNodeSeq != -1) {
-            val node = model.nodeBySeq(dragNodeSeq)
-            if (node != null) {
-                val ghostX = originalNodeX + ghostDragOffsetX
-                val ghostY = originalNodeY + ghostDragOffsetY
-                val snappedX = snapToGrid(ghostX, FlaiEditorTheme.GRID_SIZE)
-                val snappedY = snapToGrid(ghostY, FlaiEditorTheme.GRID_SIZE)
-                val oldComposite = g2.composite
-                g2.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f)
-                val ghostShape = RoundRectangle2D.Float(snappedX.toFloat(), snappedY.toFloat(), NODE_WIDTH.toFloat(), NODE_HEIGHT.toFloat(), ARC.toFloat(), ARC.toFloat())
-                g2.color = FlaiEditorTheme.accentFor(node.gate)
-                g2.fill(ghostShape)
-                g2.color = FlaiEditorTheme.SELECTION_OUTLINE
-                g2.stroke = BasicStroke(2f)
-                g2.draw(ghostShape)
-                g2.stroke = BasicStroke(1f)
-                g2.composite = oldComposite
-            }
-        }
+        val state = CanvasRenderState(
+            selectedNodeSeq = selectedNodeSeq,
+            hoveredNodeSeq = hoveredNodeSeq,
+            nodeHoverAlpha = nodeHoverAlpha.toMap(),
+            executionStatus = executionStatus,
+            isGhostDragging = isGhostDragging,
+            ghostNodeSeq = dragNodeSeq,
+            ghostX = ghostX,
+            ghostY = ghostY,
+            isDraggingEdge = isDraggingEdge,
+            edgeDragFromSeq = edgeDragFromSeq,
+            edgeDragFromPort = edgeDragFromPort,
+            edgeDragModelX = edgeDragModelPt.x,
+            edgeDragModelY = edgeDragModelPt.y,
+            animTick = animTick,
+            selectedEdge = selectedEdge,
+        )
 
-        // Draw live edge drag preview
-        if (isDraggingEdge && edgeDragFromSeq != -1) {
-            val fromNode = model.nodeBySeq(edgeDragFromSeq)
-            if (fromNode != null) {
-                val portCenter = outputPortCenter(fromNode, edgeDragFromPort)
-                val endPt = inversePoint(edgeDragCurrentX, edgeDragCurrentY)
-                g2.color = JBColor(Color(0, 0, 0, 128), Color(200, 200, 200, 128))
-                g2.stroke = BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 0f, floatArrayOf(6f, 4f), 0f)
-                drawBezier(g2, portCenter.x, portCenter.y, endPt.x, endPt.y)
-                g2.stroke = BasicStroke(1f)
-            }
-        }
+        renderer.paint(g2, model, state)
 
         g2.transform = savedTransform
-        onRepaint()
+        _listener?.onRepaint()
     }
 
     private fun drawDotGrid(g2: Graphics2D) {
@@ -492,254 +496,6 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         }
     }
 
-    private fun gateIcon(gate: Gate): javax.swing.Icon = when (gate) {
-        is InputGate -> FlaiIcons.GATE_INPUT
-        is OutputGate -> FlaiIcons.GATE_OUTPUT
-        is LlmGate -> FlaiIcons.GATE_LLM
-        is LogicGate -> FlaiIcons.GATE_LOGIC
-        is ToolGate -> FlaiIcons.GATE_TOOL
-        is ReadFileGate -> FlaiIcons.GATE_READ_FILE
-        is WriteFileGate -> FlaiIcons.GATE_WRITE_FILE
-    }
-
-    private fun drawNode(g2: Graphics2D, node: VisualNode) {
-        val x = node.x
-        val y = node.y
-        val isSelected = node.nodeSeq == selectedNodeSeq
-        val isHovered = node.nodeSeq == hoveredNodeSeq
-        val isEntry = node.nodeSeq == model.entryNodeSeq
-        val accent = FlaiEditorTheme.accentFor(node.gate)
-        val hoverAlpha = nodeHoverAlpha.getOrDefault(node.nodeSeq, 0f)
-
-        val shape = RoundRectangle2D.Float(x.toFloat(), y.toFloat(), NODE_WIDTH.toFloat(), NODE_HEIGHT.toFloat(), ARC.toFloat(), ARC.toFloat())
-
-        // Drop shadow — elevated slightly on hover
-        val shadowOffset = if (isHovered) 5 else 3
-        val shadowColor = FlaiEditorTheme.NODE_SHADOW
-        g2.color = shadowColor
-        val shadowShape = RoundRectangle2D.Float((x + shadowOffset).toFloat(), (y + shadowOffset).toFloat(), NODE_WIDTH.toFloat(), NODE_HEIGHT.toFloat(), ARC.toFloat(), ARC.toFloat())
-        g2.fill(shadowShape)
-
-        // Selection outer glow
-        if (isSelected) {
-            g2.color = FlaiEditorTheme.NODE_SELECTED_GLOW
-            val glowSize = 6f
-            val glowShape = RoundRectangle2D.Float(x - glowSize, y - glowSize, NODE_WIDTH + glowSize * 2, NODE_HEIGHT + glowSize * 2, ARC + glowSize, ARC + glowSize)
-            g2.fill(glowShape)
-        }
-
-        // Card background
-        g2.color = FlaiEditorTheme.NODE_BG
-        g2.fill(shape)
-
-        // Left accent border (4 px)
-        val accentBorder = RoundRectangle2D.Float(x.toFloat(), y.toFloat(), 4f, NODE_HEIGHT.toFloat(), ARC.toFloat(), ARC.toFloat())
-        // For the left bar we clip to a rectangle to avoid rounded right edge on the bar
-        val clip = g2.clip
-        g2.clip = Rectangle(x, y, 4, NODE_HEIGHT)
-        g2.color = accent
-        g2.fillRoundRect(x, y, 4, NODE_HEIGHT, ARC, ARC)
-        g2.clip = clip
-
-        // Border
-        g2.stroke = if (isSelected) BasicStroke(2.5f) else BasicStroke(1f)
-        g2.color = if (isSelected) {
-            FlaiEditorTheme.SELECTION_OUTLINE
-        } else {
-            val brightened = accent.brighter()
-            if (isHovered) brightened else JBColor(Color(180, 180, 180), Color(80, 80, 80))
-        }
-        g2.draw(shape)
-        g2.stroke = BasicStroke(1f)
-
-        // Entry marker: small filled orange triangle at top-left corner
-        if (isEntry) {
-            val triX = intArrayOf(x + 2, x + 10, x + 2)
-            val triY = intArrayOf(y + 2, y + 2, y + 10)
-            g2.color = JBColor(Color(200, 100, 0), Color(255, 170, 40))
-            g2.fillPolygon(triX, triY, 3)
-        }
-
-        // Gate icon (left of label, tinted with accent)
-        val icon = gateIcon(node.gate)
-        val iconX = x + 8
-        val iconY = y + (NODE_HEIGHT - icon.iconHeight) / 2
-        // Paint icon; tint by temporarily setting a composite
-        icon.paintIcon(null, g2, iconX, iconY)
-
-        // Label text
-        g2.color = JBColor(Color(30, 30, 30), Color(230, 230, 230))
-        val fm = g2.fontMetrics
-        val label = node.gate.label
-        val textStartX = iconX + icon.iconWidth + 6
-        val availWidth = NODE_WIDTH - textStartX + x - 6
-        val displayLabel = if (fm.stringWidth(label) > availWidth) {
-            var truncated = label
-            while (truncated.isNotEmpty() && fm.stringWidth("$truncated…") > availWidth) {
-                truncated = truncated.dropLast(1)
-            }
-            "$truncated…"
-        } else {
-            label
-        }
-        val textY = y + (NODE_HEIGHT + fm.ascent - fm.descent) / 2
-        g2.drawString(displayLabel, textStartX, textY)
-
-        // LLM star icon (top-right, clickable — step 6)
-        if (node.gate is LlmGate) {
-            drawLlmStar(g2, x + NODE_WIDTH - 10, y + 10, 6)
-        }
-
-        // Execution status badge
-        val status = executionStatus[node.gate.label]
-        if (status != null) {
-            drawStatusBadge(g2, x + NODE_WIDTH - 16, y + 4, status)
-        }
-
-        // Input ports (left edge, center)
-        val isNodeActive = isSelected || isHovered
-        val inputPorts = node.gate.inputPorts()
-        for ((i, _) in inputPorts.withIndex()) {
-            val portY = y + NODE_HEIGHT / 2 + i * (PORT_RADIUS * 2 + 2) - (inputPorts.size - 1) * (PORT_RADIUS + 1)
-            drawPort(g2, x - PORT_RADIUS, portY, false, isNodeActive)
-        }
-
-        // Output ports (right edge)
-        val outputPorts = node.gate.outputPorts()
-        val outCount = outputPorts.size
-        for ((i, portName) in outputPorts.withIndex()) {
-            val portY = outputPortY(y, i, outCount)
-            val portColor = logicBranchColor(node.gate, portName)
-            val portLabel = logicPortLabel(node.gate, portName)
-            drawPort(g2, x + NODE_WIDTH, portY, true, isNodeActive, portColor, portLabel)
-        }
-    }
-
-    private fun drawLlmStar(g2: Graphics2D, cx: Int, cy: Int, r: Int) {
-        val pts = 5
-        val innerR = r / 2.5
-        val xPts = IntArray(pts * 2)
-        val yPts = IntArray(pts * 2)
-        for (i in 0 until pts * 2) {
-            val angle = Math.PI / pts * i - Math.PI / 2
-            val radius: Double = if (i % 2 == 0) r.toDouble() else innerR
-            xPts[i] = (cx + radius * Math.cos(angle)).toInt()
-            yPts[i] = (cy + radius * Math.sin(angle)).toInt()
-        }
-        g2.color = JBColor(Color(220, 180, 30), Color(255, 210, 60))
-        g2.fillPolygon(xPts, yPts, pts * 2)
-    }
-
-    private fun drawPort(g2: Graphics2D, cx: Int, cy: Int, isOutput: Boolean, isNodeActive: Boolean = false, color: Color? = null, label: String? = null) {
-        val r = PORT_RADIUS
-        val portColor = color ?: if (isOutput) FlaiEditorTheme.PORT_OUTPUT else FlaiEditorTheme.PORT_INPUT
-        if (isNodeActive) {
-            g2.color = Color(portColor.red, portColor.green, portColor.blue, 80)
-            val glowR = r + 3
-            g2.fillOval(cx - glowR, cy - glowR, glowR * 2, glowR * 2)
-        }
-        g2.color = portColor
-        g2.fillOval(cx - r, cy - r, r * 2, r * 2)
-        g2.color = JBColor(Color(60, 60, 60), Color(180, 180, 180))
-        g2.stroke = BasicStroke(1f)
-        g2.drawOval(cx - r, cy - r, r * 2, r * 2)
-        if (label != null) {
-            val savedFont = g2.font
-            g2.font = Font(Font.SANS_SERIF, Font.BOLD, 7)
-            val fm = g2.fontMetrics
-            g2.color = Color.WHITE
-            g2.drawString(label, cx - fm.stringWidth(label) / 2, cy + fm.ascent / 2 - 1)
-            g2.font = savedFont
-        }
-    }
-
-    private fun outputPortY(nodeY: Int, i: Int, outCount: Int): Int {
-        val spacing = PORT_RADIUS * 2 + 4
-        return nodeY + NODE_HEIGHT / 2 + i * spacing - (outCount - 1) * spacing / 2
-    }
-
-    private fun logicBranchColor(gate: Gate, portName: String): Color? {
-        if (gate !is LogicGate) return null
-        val branchIndex = gate.branches.indexOfFirst { it.port == portName }
-        return if (branchIndex >= 0) FlaiEditorTheme.branchColor(branchIndex) else FlaiEditorTheme.BRANCH_DEFAULT_COLOR
-    }
-
-    private fun logicPortLabel(gate: Gate, portName: String): String? {
-        if (gate !is LogicGate) return null
-        val branchIndex = gate.branches.indexOfFirst { it.port == portName }
-        return if (branchIndex >= 0) "${branchIndex + 1}" else "D"
-    }
-
-    private fun drawStatusBadge(g2: Graphics2D, cx: Int, cy: Int, status: GateStatus) {
-        val r = 7
-        when (status) {
-            GateStatus.RUNNING -> {
-                val alpha = 128 + (Math.sin(animTick * 0.4) * 127).toInt()
-                g2.color = Color(50, 100, 220, alpha.coerceIn(0, 255))
-                g2.fillOval(cx - r, cy - r, r * 2, r * 2)
-            }
-            GateStatus.SUCCESS -> {
-                g2.color = Color(0, 180, 0)
-                g2.fillOval(cx - r, cy - r, r * 2, r * 2)
-            }
-            GateStatus.FAILURE -> {
-                g2.color = Color(220, 0, 0)
-                g2.fillOval(cx - r, cy - r, r * 2, r * 2)
-            }
-            GateStatus.OUTPUT -> {
-                g2.color = Color(180, 100, 0)
-                g2.fillOval(cx - r, cy - r, r * 2, r * 2)
-            }
-        }
-    }
-
-    private fun drawEdge(g2: Graphics2D, edge: VisualEdge) {
-        val fromNode = model.nodeBySeq(edge.fromSeq) ?: return
-        val toNode = model.nodeBySeq(edge.toSeq) ?: return
-        val fromPt = outputPortCenter(fromNode, edge.fromPort)
-        val toPt = inputPortCenter(toNode, edge.toPort)
-        val isSelected = edge == selectedEdge
-        val isActive = isSelected ||
-            fromNode.nodeSeq == selectedNodeSeq || toNode.nodeSeq == selectedNodeSeq ||
-            fromNode.nodeSeq == hoveredNodeSeq || toNode.nodeSeq == hoveredNodeSeq
-        val branchColor = logicBranchColor(fromNode.gate, edge.fromPort)
-        g2.stroke = BasicStroke(if (isSelected) 2.5f else 1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-        g2.color = when {
-            isSelected -> JBColor(Color(0, 100, 220), Color(100, 160, 255))
-            branchColor != null -> {
-                val alpha = if (isActive) 220 else 160
-                Color(branchColor.red, branchColor.green, branchColor.blue, alpha)
-            }
-            isActive -> JBColor(Color(110, 130, 200), Color(160, 180, 240))
-            else -> JBColor(Color(80, 80, 80), Color(150, 150, 150))
-        }
-        drawBezier(g2, fromPt.x, fromPt.y, toPt.x, toPt.y)
-        g2.stroke = BasicStroke(1f)
-    }
-
-    private fun drawBezier(g2: Graphics2D, x1: Double, y1: Double, x2: Double, y2: Double) {
-        val ctrlOffset = (Math.abs(x2 - x1) / 2).coerceAtLeast(60.0)
-        val path = GeneralPath()
-        path.moveTo(x1, y1)
-        path.curveTo(x1 + ctrlOffset, y1, x2 - ctrlOffset, y2, x2, y2)
-        g2.draw(path)
-    }
-
-    // Port center helpers (in model space)
-    private fun outputPortCenter(node: VisualNode, port: String): Point2D.Double {
-        val ports = node.gate.outputPorts()
-        val i = ports.indexOf(port).coerceAtLeast(0)
-        val cy = outputPortY(node.y, i, ports.size)
-        return Point2D.Double((node.x + NODE_WIDTH).toDouble(), cy.toDouble())
-    }
-
-    private fun inputPortCenter(node: VisualNode, port: String): Point2D.Double {
-        val ports = node.gate.inputPorts()
-        val i = ports.indexOf(port).coerceAtLeast(0)
-        val cy = node.y + NODE_HEIGHT / 2 + i * (PORT_RADIUS * 2 + 2) - (ports.size - 1) * (PORT_RADIUS + 1)
-        return Point2D.Double(node.x.toDouble(), cy.toDouble())
-    }
-
     private fun inversePoint(screenX: Int, screenY: Int): Point2D.Double {
         val result = Point2D.Double()
         try {
@@ -762,7 +518,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
             val outCount = ports.size
             for ((i, portName) in ports.withIndex()) {
                 val cx = node.x + NODE_WIDTH
-                val cy = outputPortY(node.y, i, outCount)
+                val cy = renderer.outputPortY(node.y, i, outCount)
                 if (dist(mx, my, cx, cy) <= PORT_RADIUS + 4) {
                     return Pair(node.nodeSeq, portName)
                 }
@@ -790,8 +546,8 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         for (edge in model.edges) {
             val fromNode = model.nodeBySeq(edge.fromSeq) ?: continue
             val toNode = model.nodeBySeq(edge.toSeq) ?: continue
-            val p1 = outputPortCenter(fromNode, edge.fromPort)
-            val p2 = inputPortCenter(toNode, edge.toPort)
+            val p1 = renderer.outputPortCenter(fromNode, edge.fromPort)
+            val p2 = renderer.inputPortCenter(toNode, edge.toPort)
             if (isNearBezier(mx.toDouble(), my.toDouble(), p1.x, p1.y, p2.x, p2.y, threshold = 8.0)) {
                 return edge
             }
@@ -836,6 +592,12 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         return Math.sqrt(dx * dx + dy * dy)
     }
 
+    private fun dist(x1: Double, y1: Double, x2: Int, y2: Int): Double {
+        val dx = x1 - x2.toDouble()
+        val dy = y1 - y2.toDouble()
+        return Math.sqrt(dx * dx + dy * dy)
+    }
+
     private fun handleRightClick(e: MouseEvent, mx: Int, my: Int) {
         if (!isEditable) return
         val node = findNodeAt(mx, my) ?: return
@@ -845,15 +607,14 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
             model.removeNode(node.nodeSeq)
             if (selectedNodeSeq == node.nodeSeq) {
                 selectedNodeSeq = -1
-                onNodeSelected(null)
+                _listener?.onNodeSelected(null)
             }
             repaint()
         }
         popup.add(deleteItem)
         val setEntryItem = JMenuItem("Set as Entry")
         setEntryItem.addActionListener {
-            model.entryNodeSeq = node.nodeSeq
-            model.isDirty = true
+            model.setEntry(node.nodeSeq)
             repaint()
         }
         popup.add(setEntryItem)
@@ -922,7 +683,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
             val cx = node.x + NODE_WIDTH - 10
             val cy = node.y + 10
             val r = 8 // hit radius slightly larger than visual radius 6
-            if (dist(mx, my, cx, cy) <= r) {
+            if (dist(mx.toDouble(), my.toDouble(), cx, cy) <= r) {
                 return node
             }
         }
@@ -938,15 +699,15 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
             for ((i, portName) in inputPorts.withIndex()) {
                 val cx = node.x
                 val cy = node.y + NODE_HEIGHT / 2 + i * (PORT_RADIUS * 2 + 2) - (inputPorts.size - 1) * (PORT_RADIUS + 1)
-                if (dist(mx, my, cx, cy) <= PORT_RADIUS + 4) {
+                if (dist(mx.toDouble(), my.toDouble(), cx, cy) <= PORT_RADIUS + 4) {
                     return "Input: $portName"
                 }
             }
             val outputPorts = node.gate.outputPorts()
             for ((i, portName) in outputPorts.withIndex()) {
                 val cx = node.x + NODE_WIDTH
-                val cy = outputPortY(node.y, i, outputPorts.size)
-                if (dist(mx, my, cx, cy) <= PORT_RADIUS + 4) {
+                val cy = renderer.outputPortY(node.y, i, outputPorts.size)
+                if (dist(mx.toDouble(), my.toDouble(), cx, cy) <= PORT_RADIUS + 4) {
                     return "Output: $portName"
                 }
             }
