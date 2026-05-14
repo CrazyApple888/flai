@@ -13,7 +13,7 @@ entry: gate-id                # required — ID of the first gate to execute
 
 gates:
   gate-id:
-    type: input | output | llm | logic | tool
+    type: input | output | llm | logic | tool | bash | read-file | write-file
     label: Human label        # optional, defaults to gate-id
     # ... gate-specific fields
 
@@ -188,6 +188,64 @@ edges:
     fromPort: default
     to: fallback
 ```
+
+---
+
+### `bash`
+
+Runs one non-interactive Bash command from the project root or an explicitly configured project-local working directory.
+
+```yaml
+run-tests:
+  type: bash
+  label: Run Tests
+  command: "./gradlew test --tests {{test_class}}"
+  workingDirectory: "."
+  timeoutSeconds: 300
+  failOnNonZeroExit: true
+  environment:
+    FLAI_RUN_ID: "{{run_id}}"
+  outputMapping:
+    stdout: test_stdout
+    stderr: test_stderr
+    exitCode: test_exit_code
+    success: tests_passed
+    timedOut: tests_timed_out
+```
+
+**Fields:**
+
+| field | required | default | notes |
+|-------|----------|---------|-------|
+| `command` | yes | — | Bash command string. Supports `{{variable}}` template syntax. |
+| `workingDirectory` | no | `.` | Project-root-relative or absolute path inside the project root. Supports templates. |
+| `environment` | no | `{}` | String map overlaid onto the inherited process environment. Values support templates. |
+| `timeoutSeconds` | no | `120` | Positive integer. Timed-out commands are terminated and fail the gate. |
+| `failOnNonZeroExit` | no | `true` | If `false`, non-zero exits produce a successful gate result with `success: false`. |
+| `outputMapping` | no | `{}` | Bash output key to context key. Empty mapping stores all raw outputs directly. |
+| `label` | no | gate id | Display label in UI and logs. |
+
+**Outputs:**
+
+| output key | type | meaning |
+|------------|------|---------|
+| `stdout` | string | Captured UTF-8 standard output. |
+| `stderr` | string | Captured UTF-8 standard error. |
+| `exitCode` | integer | Process exit code. |
+| `success` | boolean | `true` only when `exitCode == 0`. |
+| `timedOut` | boolean | `false` for completed process results. Timeout failures halt the pipeline. |
+
+**Behavior:**
+- The command runs as `/bin/bash -lc <rendered command>`.
+- Missing template variables in `command`, `workingDirectory`, or environment values fail the gate before a process starts.
+- A rendered blank command or working directory fails the gate.
+- Relative working directories resolve against the project root. Absolute paths are accepted only if their canonical path is inside the project root subtree.
+- Exit code `0` succeeds unless the process times out or cannot start.
+- Non-zero exit fails and halts the pipeline by default. With `failOnNonZeroExit: false`, the gate completes structurally and downstream gates can branch on `exitCode` or `success`.
+- Timeout, start failure, invalid working directory, and cancellation stop the active process. Cancellation is rethrown to the pipeline runner.
+- Environment values are not logged as a full map to avoid exposing secrets.
+
+`bash` differs from the built-in `ide.runCommand` tool by being a first-class gate with typed YAML fields, Bash-specific timeout and working-directory scoping, and gate-native `outputMapping`.
 
 ---
 

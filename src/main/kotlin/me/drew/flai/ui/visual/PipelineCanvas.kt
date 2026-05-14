@@ -375,6 +375,7 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
             )
             "logic" -> LogicGate(id = id, label = "Logic", branches = emptyList(), defaultPort = "default")
             "tool" -> ToolGate(id = id, label = "Tool", toolName = "")
+            "bash" -> BashGate(id = id, label = "Bash", command = "printf hello")
             "read-file" -> ReadFileGate(id = id, label = "Read File", path = "", outputKey = "content")
             "write-file" -> WriteFileGate(id = id, label = "Write File", path = "", contentKey = "content")
             else -> null

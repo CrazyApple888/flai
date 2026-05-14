@@ -80,6 +80,7 @@ class CoroutinePipelineExecutor(private val executors: List<GateExecutor<*>>) : 
         val outputMapping: Map<String, String> = when (gate) {
             is LlmGate -> gate.outputMapping
             is ToolGate -> gate.outputMapping
+            is BashGate -> gate.outputMapping
             is OutputGate -> gate.outputMapping
             is InputGate,
             is LogicGate,

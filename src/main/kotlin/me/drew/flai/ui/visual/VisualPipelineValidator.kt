@@ -104,6 +104,23 @@ object VisualPipelineValidator {
                     errors.add(ValidationError(id, "toolName", "toolName is required for ToolGate '$id'"))
                 }
             }
+            is BashGate -> {
+                if (gate.command.isBlank()) {
+                    errors.add(ValidationError(id, "command", "command is required for BashGate '$id'"))
+                }
+                if (gate.workingDirectory.isBlank()) {
+                    errors.add(ValidationError(id, "workingDirectory", "workingDirectory is required for BashGate '$id'"))
+                }
+                if (gate.timeoutSeconds <= 0) {
+                    errors.add(ValidationError(id, "timeoutSeconds", "timeoutSeconds must be greater than zero for BashGate '$id'"))
+                }
+                if (gate.environment.keys.any { it.isBlank() }) {
+                    errors.add(ValidationError(id, "environment", "environment keys must not be blank for BashGate '$id'"))
+                }
+                if (gate.outputMapping.keys.any { it.isBlank() } || gate.outputMapping.values.any { it.isBlank() }) {
+                    errors.add(ValidationError(id, "outputMapping", "outputMapping keys and values must not be blank for BashGate '$id'"))
+                }
+            }
             is ReadFileGate -> {
                 if (gate.path.isEmpty()) {
                     errors.add(ValidationError(id, "path", "path is required for ReadFileGate '$id'"))

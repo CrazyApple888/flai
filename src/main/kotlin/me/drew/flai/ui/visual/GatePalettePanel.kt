@@ -15,7 +15,7 @@ import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-private val GATE_TYPES = listOf("input", "output", "llm", "logic", "tool", "read-file", "write-file")
+private val GATE_TYPES = listOf("input", "output", "llm", "logic", "tool", "bash", "read-file", "write-file")
 
 fun filterGateTypes(query: String, types: List<String>): List<String> {
     if (query.isEmpty()) return types
@@ -252,6 +252,7 @@ class GatePalettePanel(
         "llm" -> FlaiIcons.GATE_LLM
         "logic" -> FlaiIcons.GATE_LOGIC
         "tool" -> FlaiIcons.GATE_TOOL
+        "bash" -> FlaiIcons.GATE_TOOL
         "read-file" -> FlaiIcons.GATE_READ_FILE
         "write-file" -> FlaiIcons.GATE_WRITE_FILE
         else -> FlaiIcons.GATE_INPUT

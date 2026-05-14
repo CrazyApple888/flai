@@ -94,6 +94,16 @@ class YamlPipelineParser {
                 inputMapping = parseStringMap(map["inputMapping"]),
                 outputMapping = parseStringMap(map["outputMapping"]),
             )
+            "bash" -> BashGate(
+                id = id,
+                label = label,
+                command = parseRequiredNonBlankString(id, map, "command", "Bash gate"),
+                workingDirectory = parseOptionalNonBlankString(id, map, "workingDirectory", "Bash gate") ?: ".",
+                environment = parseStrictStringMap(id, map["environment"], "environment", required = false),
+                timeoutSeconds = parsePositiveInt(id, map["timeoutSeconds"], "timeoutSeconds") ?: 120,
+                failOnNonZeroExit = parseBoolean(id, map["failOnNonZeroExit"], "failOnNonZeroExit") ?: true,
+                outputMapping = parseStrictStringMap(id, map["outputMapping"], "outputMapping", required = false),
+            )
             "read-file" -> ReadFileGate(
                 id = id,
                 label = label,
@@ -140,6 +150,80 @@ class YamlPipelineParser {
         return map.entries
             .filter { it.key != null && it.value != null }
             .associate { it.key.toString() to it.value.toString() }
+    }
+
+    private fun parseRequiredNonBlankString(
+        gateId: GateId,
+        map: Map<String, Any>,
+        field: String,
+        gateName: String,
+    ): String {
+        val value = map[field]
+            ?: throw PipelineLoadException("$gateName '${gateId.value}' missing '$field'")
+        val stringValue = value as? String
+            ?: throw PipelineLoadException("$gateName '${gateId.value}': '$field' must be a string")
+        if (stringValue.isBlank()) {
+            throw PipelineLoadException("$gateName '${gateId.value}': '$field' must not be blank")
+        }
+        return stringValue
+    }
+
+    private fun parseOptionalNonBlankString(
+        gateId: GateId,
+        map: Map<String, Any>,
+        field: String,
+        gateName: String,
+    ): String? {
+        val value = map[field] ?: return null
+        val stringValue = value as? String
+            ?: throw PipelineLoadException("$gateName '${gateId.value}': '$field' must be a string")
+        if (stringValue.isBlank()) {
+            throw PipelineLoadException("$gateName '${gateId.value}': '$field' must not be blank")
+        }
+        return stringValue
+    }
+
+    private fun parseStrictStringMap(
+        gateId: GateId,
+        obj: Any?,
+        field: String,
+        required: Boolean,
+    ): Map<String, String> {
+        if (obj == null) {
+            if (required) {
+                throw PipelineLoadException("Gate '${gateId.value}': '$field' is required")
+            }
+            return emptyMap()
+        }
+        val map = obj as? Map<*, *>
+            ?: throw PipelineLoadException("Gate '${gateId.value}': '$field' must be a map")
+        return map.entries.associate { (key, value) ->
+            val stringKey = key as? String
+                ?: throw PipelineLoadException("Gate '${gateId.value}': '$field' keys must be strings")
+            val stringValue = value as? String
+                ?: throw PipelineLoadException("Gate '${gateId.value}': '$field.$stringKey' must be a string")
+            stringKey to stringValue
+        }
+    }
+
+    private fun parsePositiveInt(gateId: GateId, obj: Any?, field: String): Int? {
+        if (obj == null) {
+            return null
+        }
+        val value = obj as? Int
+            ?: throw PipelineLoadException("Gate '${gateId.value}': '$field' must be an integer")
+        if (value <= 0) {
+            throw PipelineLoadException("Gate '${gateId.value}': '$field' must be greater than zero")
+        }
+        return value
+    }
+
+    private fun parseBoolean(gateId: GateId, obj: Any?, field: String): Boolean? {
+        if (obj == null) {
+            return null
+        }
+        return obj as? Boolean
+            ?: throw PipelineLoadException("Gate '${gateId.value}': '$field' must be a boolean")
     }
 
     @Suppress("UNCHECKED_CAST")

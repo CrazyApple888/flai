@@ -428,6 +428,61 @@ class GatePropertySections(
         return SectionResult(cards = cards, editableComponents = editableList)
     }
 
+    fun buildBashGateFields(nodeSeq: Int, gate: BashGate): SectionResult {
+        val editableList = mutableListOf<JComponent>()
+
+        val commandArea = JTextArea(gate.command, 5, 20).apply {
+            lineWrap = true
+            wrapStyleWord = true
+            document.addDocumentListener(object : DocumentListener {
+                override fun insertUpdate(e: DocumentEvent) = save()
+                override fun removeUpdate(e: DocumentEvent) = save()
+                override fun changedUpdate(e: DocumentEvent) = save()
+                fun save() {
+                    onGateUpdated(nodeSeq, gate.copy(command = text))
+                }
+            })
+        }
+        editableList.add(commandArea)
+        val commandCard = cardPanel(
+            "Command",
+            JScrollPane(commandArea).apply {
+                maximumSize = Dimension(Int.MAX_VALUE, 120)
+                preferredSize = Dimension(250, 120)
+            },
+        )
+
+        val settingsCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        settingsCard.add(labeledRow("Working Dir", buildTextField(gate.workingDirectory, editableList) { v ->
+            onGateUpdated(nodeSeq, gate.copy(workingDirectory = v))
+        }))
+        settingsCard.add(labeledRow("Timeout Sec", buildTextField(gate.timeoutSeconds.toString(), editableList) { v ->
+            val timeout = v.toIntOrNull() ?: gate.timeoutSeconds
+            onGateUpdated(nodeSeq, gate.copy(timeoutSeconds = timeout))
+        }))
+        val failOnNonZeroCheck = JCheckBox().apply {
+            isSelected = gate.failOnNonZeroExit
+            addActionListener {
+                onGateUpdated(nodeSeq, gate.copy(failOnNonZeroExit = isSelected))
+            }
+        }
+        editableList.add(failOnNonZeroCheck)
+        settingsCard.add(labeledRow("Fail Non-Zero", failOnNonZeroCheck))
+
+        val environmentCards = buildMappingSection("Environment", gate.environment, editableList) { map ->
+            onGateUpdated(nodeSeq, gate.copy(environment = map))
+        }
+        val outputMappingCards = buildMappingSection("Output Mapping", gate.outputMapping, editableList) { map ->
+            onGateUpdated(nodeSeq, gate.copy(outputMapping = map))
+        }
+
+        return SectionResult(
+            cards = listOf(commandCard, cardPanel("Bash Settings", settingsCard)) + environmentCards + outputMappingCards,
+            editableComponents = editableList,
+            firstFocusTarget = commandArea,
+        )
+    }
+
     fun buildReadFileGateFields(nodeSeq: Int, gate: ReadFileGate): SectionResult {
         val editableList = mutableListOf<JComponent>()
         val fileCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
@@ -625,6 +680,7 @@ class GatePropertySections(
         is LlmGate -> gate.copy(label = newLabel)
         is LogicGate -> gate.copy(label = newLabel)
         is ToolGate -> gate.copy(label = newLabel)
+        is BashGate -> gate.copy(label = newLabel)
         is ReadFileGate -> gate.copy(label = newLabel)
         is WriteFileGate -> gate.copy(label = newLabel)
     }

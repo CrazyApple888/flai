@@ -106,6 +106,18 @@ class GatePortsTest {
     }
 
     @Test
+    fun `BashGate has one input port named in`() {
+        val gate = BashGate(id = GateId("g"), label = "G", command = "printf hello")
+        assertEquals(listOf("in"), gate.inputPorts())
+    }
+
+    @Test
+    fun `BashGate has one output port named out`() {
+        val gate = BashGate(id = GateId("g"), label = "G", command = "printf hello")
+        assertEquals(listOf("out"), gate.outputPorts())
+    }
+
+    @Test
     fun `ReadFileGate has one input port named in`() {
         val gate = ReadFileGate(id = GateId("g"), label = "G", path = "/p", outputKey = "content")
         assertEquals(listOf("in"), gate.inputPorts())

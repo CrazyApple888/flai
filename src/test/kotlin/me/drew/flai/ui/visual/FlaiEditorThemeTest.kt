@@ -6,7 +6,7 @@ import org.junit.Test
 
 class FlaiEditorThemeTest {
 
-    // Seven distinct gate instances for testing accent colors
+    // Gate instances for testing accent colors
     private val inputGate = InputGate(id = GateId("i"), label = "Input")
     private val outputGate = OutputGate(id = GateId("o"), label = "Output")
     private val llmGate = LlmGate(
@@ -16,11 +16,12 @@ class FlaiEditorThemeTest {
     )
     private val logicGate = LogicGate(id = GateId("lg"), label = "Logic", branches = emptyList())
     private val toolGate = ToolGate(id = GateId("t"), label = "Tool", toolName = "")
+    private val bashGate = BashGate(id = GateId("b"), label = "Bash", command = "printf hello")
     private val readFileGate = ReadFileGate(id = GateId("r"), label = "Read", path = "", outputKey = "out")
     private val writeFileGate = WriteFileGate(id = GateId("w"), label = "Write", path = "", contentKey = "c")
 
-    private val allGates: List<Gate> = listOf(inputGate, outputGate, llmGate, logicGate, toolGate, readFileGate, writeFileGate)
-    private val allTypes: List<String> = listOf("input", "output", "llm", "logic", "tool", "read-file", "write-file")
+    private val allGates: List<Gate> = listOf(inputGate, outputGate, llmGate, logicGate, toolGate, bashGate, readFileGate, writeFileGate)
+    private val allTypes: List<String> = listOf("input", "output", "llm", "logic", "tool", "bash", "read-file", "write-file")
 
     @Test
     fun `accentFor returns non-null for all gate types`() {
@@ -33,7 +34,7 @@ class FlaiEditorThemeTest {
     fun `accentFor returns distinct colors for all gate types`() {
         val colors = allGates.map { FlaiEditorTheme.accentFor(it) }
         val distinct = colors.toSet()
-        assertEquals("Expected 7 distinct accent colors, got ${distinct.size}", 7, distinct.size)
+        assertEquals("Expected 8 distinct accent colors, got ${distinct.size}", 8, distinct.size)
     }
 
     @Test
@@ -47,7 +48,7 @@ class FlaiEditorThemeTest {
     fun `accentForType returns distinct colors for all type strings`() {
         val colors = allTypes.map { FlaiEditorTheme.accentForType(it) }
         val distinct = colors.toSet()
-        assertEquals("Expected 7 distinct accent colors from accentForType, got ${distinct.size}", 7, distinct.size)
+        assertEquals("Expected 8 distinct accent colors from accentForType, got ${distinct.size}", 8, distinct.size)
     }
 
     @Test

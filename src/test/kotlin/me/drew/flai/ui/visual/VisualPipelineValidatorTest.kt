@@ -164,6 +164,26 @@ class VisualPipelineValidatorTest {
     }
 
     @Test
+    fun `BashGate missing command produces error`() {
+        val model = makeValidModel()
+        val gate = BashGate(id = GateId("bash1"), label = "Bash", command = "")
+        model.addNode(gate, 100, 0)
+        val result = VisualPipelineValidator.validate(model)
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.gateId == "bash1" && it.field == "command" })
+    }
+
+    @Test
+    fun `BashGate invalid timeout produces error`() {
+        val model = makeValidModel()
+        val gate = BashGate(id = GateId("bash1"), label = "Bash", command = "printf hello", timeoutSeconds = 0)
+        model.addNode(gate, 100, 0)
+        val result = VisualPipelineValidator.validate(model)
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.gateId == "bash1" && it.field == "timeoutSeconds" })
+    }
+
+    @Test
     fun `ReadFileGate missing path produces error`() {
         val model = makeValidModel()
         val gate = ReadFileGate(id = GateId("read1"), label = "Read", path = "", outputKey = "content")

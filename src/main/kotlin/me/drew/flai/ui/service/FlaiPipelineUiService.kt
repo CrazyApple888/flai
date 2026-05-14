@@ -48,6 +48,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
             DefaultLlmGateExecutor(llmClient, renderer, skillLoader),
             DefaultLogicGateExecutor(),
             DefaultToolGateExecutor(toolRegistry),
+            DefaultBashGateExecutor(projectBasePath, renderer),
             DefaultReadFileGateExecutor(projectBasePath, renderer),
             DefaultWriteFileGateExecutor(projectBasePath, renderer),
         )

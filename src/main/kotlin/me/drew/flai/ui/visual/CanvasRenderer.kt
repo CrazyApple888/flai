@@ -288,6 +288,7 @@ internal class CanvasRenderer {
         is LlmGate -> FlaiIcons.GATE_LLM
         is LogicGate -> FlaiIcons.GATE_LOGIC
         is ToolGate -> FlaiIcons.GATE_TOOL
+        is BashGate -> FlaiIcons.GATE_TOOL
         is ReadFileGate -> FlaiIcons.GATE_READ_FILE
         is WriteFileGate -> FlaiIcons.GATE_WRITE_FILE
     }

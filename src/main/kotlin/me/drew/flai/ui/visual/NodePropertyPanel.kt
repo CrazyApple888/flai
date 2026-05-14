@@ -78,6 +78,7 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
             is LlmGate -> sections.buildLlmGateFields(node.nodeSeq, gate)
             is LogicGate -> sections.buildLogicGateFields(node.nodeSeq, gate, model)
             is ToolGate -> sections.buildToolGateFields(node.nodeSeq, gate)
+            is BashGate -> sections.buildBashGateFields(node.nodeSeq, gate)
             is ReadFileGate -> sections.buildReadFileGateFields(node.nodeSeq, gate)
             is WriteFileGate -> sections.buildWriteFileGateFields(node.nodeSeq, gate)
         }

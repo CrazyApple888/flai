@@ -132,6 +132,32 @@ class YamlPipelineSerializer {
                     }
                 }
             }
+            is BashGate -> {
+                sb.appendLine("    type: bash")
+                sb.appendLine("    label: ${escapeScalar(gate.label)}")
+                appendMultilineString(sb, "    command", gate.command)
+                if (gate.workingDirectory != ".") {
+                    sb.appendLine("    workingDirectory: ${escapeScalar(gate.workingDirectory)}")
+                }
+                if (gate.environment.isNotEmpty()) {
+                    sb.appendLine("    environment:")
+                    for ((k, v) in gate.environment) {
+                        sb.appendLine("      ${escapeScalar(k)}: ${escapeScalar(v)}")
+                    }
+                }
+                if (gate.timeoutSeconds != 120) {
+                    sb.appendLine("    timeoutSeconds: ${gate.timeoutSeconds}")
+                }
+                if (!gate.failOnNonZeroExit) {
+                    sb.appendLine("    failOnNonZeroExit: false")
+                }
+                if (gate.outputMapping.isNotEmpty()) {
+                    sb.appendLine("    outputMapping:")
+                    for ((k, v) in gate.outputMapping) {
+                        sb.appendLine("      ${escapeScalar(k)}: ${escapeScalar(v)}")
+                    }
+                }
+            }
             is ReadFileGate -> {
                 sb.appendLine("    type: read-file")
                 sb.appendLine("    label: ${escapeScalar(gate.label)}")

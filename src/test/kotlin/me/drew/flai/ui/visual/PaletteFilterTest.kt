@@ -5,7 +5,7 @@ import org.junit.Test
 
 class PaletteFilterTest {
 
-    private val allTypes = listOf("input", "output", "llm", "logic", "tool", "read-file", "write-file")
+    private val allTypes = listOf("input", "output", "llm", "logic", "tool", "bash", "read-file", "write-file")
 
     @Test
     fun `empty query returns all types`() {
@@ -44,6 +44,12 @@ class PaletteFilterTest {
     fun `hyphen-containing type matches by partial name`() {
         val result = filterGateTypes("read", allTypes)
         assertEquals(listOf("read-file"), result)
+    }
+
+    @Test
+    fun `search for bash returns bash gate type`() {
+        val result = filterGateTypes("bash", allTypes)
+        assertEquals(listOf("bash"), result)
     }
 
     @Test

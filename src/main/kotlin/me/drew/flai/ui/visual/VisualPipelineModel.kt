@@ -202,6 +202,7 @@ class VisualPipelineModel {
         is LlmGate -> gate.copy(id = newId)
         is LogicGate -> gate.copy(id = newId)
         is ToolGate -> gate.copy(id = newId)
+        is BashGate -> gate.copy(id = newId)
         is ReadFileGate -> gate.copy(id = newId)
         is WriteFileGate -> gate.copy(id = newId)
     }

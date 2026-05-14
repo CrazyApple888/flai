@@ -83,6 +83,17 @@ data class ToolGate(
     val outputMapping: Map<String, String> = emptyMap(),
 ) : Gate()
 
+data class BashGate(
+    override val id: GateId,
+    override val label: String,
+    val command: String,
+    val workingDirectory: String = ".",
+    val environment: Map<String, String> = emptyMap(),
+    val timeoutSeconds: Int = 120,
+    val failOnNonZeroExit: Boolean = true,
+    val outputMapping: Map<String, String> = emptyMap(),
+) : Gate()
+
 enum class WriteMode { OVERWRITE, APPEND, FAIL_IF_EXISTS }
 
 data class ReadFileGate(

@@ -1,8 +1,10 @@
 package me.drew.flai.infrastructure.pipeline
 
 import me.drew.flai.domain.model.*
+import me.drew.flai.domain.port.PipelineLoadException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class YamlPipelineSerializerTest {
@@ -218,6 +220,93 @@ class YamlPipelineSerializerTest {
     }
 
     @Test
+    fun `parse minimal BashGate with defaults`() {
+        val yaml = """
+            id: bash-pipeline
+            name: Bash Pipeline
+            entry: run
+            gates:
+              run:
+                type: bash
+                command: printf hello
+            edges: []
+        """.trimIndent()
+
+        val pipeline = parser.parse(yaml)
+        val gate = pipeline.gates[GateId("run")] as BashGate
+        assertEquals("run", gate.label)
+        assertEquals("printf hello", gate.command)
+        assertEquals(".", gate.workingDirectory)
+        assertEquals(emptyMap<String, String>(), gate.environment)
+        assertEquals(120, gate.timeoutSeconds)
+        assertEquals(true, gate.failOnNonZeroExit)
+        assertEquals(emptyMap<String, String>(), gate.outputMapping)
+    }
+
+    @Test
+    fun `round-trip BashGate with all optional fields`() {
+        val gate = BashGate(
+            id = GateId("bash1"),
+            label = "Run Tests",
+            command = "./gradlew test --tests {{test_class}}",
+            workingDirectory = "app",
+            environment = mapOf("FLAI_RUN_ID" to "{{run_id}}"),
+            timeoutSeconds = 300,
+            failOnNonZeroExit = false,
+            outputMapping = mapOf("stdout" to "test_stdout", "exitCode" to "test_exit_code"),
+        )
+        val pipeline = minimalPipeline(mapOf(GateId("bash1") to gate))
+
+        val result = roundTrip(pipeline)
+        val parsed = result.gates[GateId("bash1")] as BashGate
+        assertEquals(gate, parsed)
+    }
+
+    @Test
+    fun `round-trip BashGate omits default fields`() {
+        val gate = BashGate(
+            id = GateId("bash1"),
+            label = "Bash",
+            command = "printf hello",
+        )
+        val pipeline = minimalPipeline(mapOf(GateId("bash1") to gate))
+
+        val yaml = serializer.serialize(pipeline)
+        assertTrue(!yaml.contains("workingDirectory"))
+        assertTrue(!yaml.contains("environment"))
+        assertTrue(!yaml.contains("timeoutSeconds"))
+        assertTrue(!yaml.contains("failOnNonZeroExit"))
+        assertTrue(!yaml.contains("outputMapping"))
+        val parsed = parser.parse(yaml).gates[GateId("bash1")] as BashGate
+        assertEquals(gate, parsed)
+    }
+
+    @Test
+    fun `parse BashGate rejects missing command`() {
+        assertPipelineLoadFails(
+            """
+            id: p
+            name: P
+            entry: run
+            gates:
+              run:
+                type: bash
+            edges: []
+            """.trimIndent(),
+            "command",
+        )
+    }
+
+    @Test
+    fun `parse BashGate rejects invalid field types`() {
+        assertPipelineLoadFails(bashYaml("command: ''"), "command")
+        assertPipelineLoadFails(bashYaml("command: 'printf ok'\nenvironment:\n  FOO: 123"), "environment.FOO")
+        assertPipelineLoadFails(bashYaml("command: 'printf ok'\nenvironment: 'FOO=bar'"), "environment")
+        assertPipelineLoadFails(bashYaml("command: 'printf ok'\ntimeoutSeconds: 0"), "timeoutSeconds")
+        assertPipelineLoadFails(bashYaml("command: 'printf ok'\nfailOnNonZeroExit: 1"), "failOnNonZeroExit")
+    }
+
+    @Test
     fun `round-trip ReadFileGate with default outputKey omitted`() {
         val gate = ReadFileGate(
             id = GateId("read1"),
@@ -339,7 +428,7 @@ class YamlPipelineSerializerTest {
     }
 
     @Test
-    fun `full round-trip with all 7 gate types`() {
+    fun `full round-trip with all 8 gate types`() {
         val inputGate = InputGate(
             id = GateId("start"),
             label = "Start",
@@ -367,6 +456,11 @@ class YamlPipelineSerializerTest {
             label = "Read",
             path = "/data.txt",
         )
+        val bashGate = BashGate(
+            id = GateId("bash1"),
+            label = "Bash",
+            command = "printf hello",
+        )
         val writeGate = WriteFileGate(
             id = GateId("write1"),
             label = "Write",
@@ -383,6 +477,7 @@ class YamlPipelineSerializerTest {
             GateId("logic1") to logicGate,
             GateId("tool1") to toolGate,
             GateId("read1") to readGate,
+            GateId("bash1") to bashGate,
             GateId("write1") to writeGate,
             GateId("end") to outputGate,
         )
@@ -398,12 +493,13 @@ class YamlPipelineSerializerTest {
         assertEquals(pipeline.id, result.id)
         assertEquals(pipeline.name, result.name)
         assertEquals(pipeline.description, result.description)
-        assertEquals(7, result.gates.size)
+        assertEquals(8, result.gates.size)
         assertTrue(result.gates[GateId("start")] is InputGate)
         assertTrue(result.gates[GateId("llm1")] is LlmGate)
         assertTrue(result.gates[GateId("logic1")] is LogicGate)
         assertTrue(result.gates[GateId("tool1")] is ToolGate)
         assertTrue(result.gates[GateId("read1")] is ReadFileGate)
+        assertTrue(result.gates[GateId("bash1")] is BashGate)
         assertTrue(result.gates[GateId("write1")] is WriteFileGate)
         assertTrue(result.gates[GateId("end")] is OutputGate)
     }
@@ -431,5 +527,30 @@ class YamlPipelineSerializerTest {
         assertTrue("Non-empty description should appear in YAML", yaml.contains("description: A description"))
         val result = parser.parse(yaml)
         assertEquals("A description", result.description)
+    }
+
+    private fun bashYaml(body: String): String {
+        return buildString {
+            appendLine("id: p")
+            appendLine("name: P")
+            appendLine("entry: run")
+            appendLine("gates:")
+            appendLine("  run:")
+            appendLine("    type: bash")
+            appendLine(body.lines().joinToString("\n") { "    $it" })
+            appendLine("edges: []")
+        }
+    }
+
+    private fun assertPipelineLoadFails(yaml: String, expectedMessagePart: String) {
+        try {
+            parser.parse(yaml)
+            fail("Expected PipelineLoadException")
+        } catch (e: PipelineLoadException) {
+            assertTrue(
+                "Expected message to contain '$expectedMessagePart', got '${e.message}'",
+                e.message?.contains(expectedMessagePart) == true,
+            )
+        }
     }
 }

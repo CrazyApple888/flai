@@ -13,6 +13,7 @@ object FlaiEditorTheme {
     val LLM: JBColor = JBColor(0x3375C8, 0x2259A0)
     val LOGIC: JBColor = JBColor(0xC8A800, 0x967D00)
     val TOOL: JBColor = JBColor(0x8B44C8, 0x6A2EA0)
+    val BASH: JBColor = JBColor(0x167A72, 0x2BA89C)
     val READ_FILE: JBColor = JBColor(0xC89200, 0x997000)
     val WRITE_FILE: JBColor = JBColor(0xC83050, 0xA0243E)
 
@@ -43,6 +44,7 @@ object FlaiEditorTheme {
         is LlmGate -> LLM
         is LogicGate -> LOGIC
         is ToolGate -> TOOL
+        is BashGate -> BASH
         is ReadFileGate -> READ_FILE
         is WriteFileGate -> WRITE_FILE
     }
@@ -53,6 +55,7 @@ object FlaiEditorTheme {
         "llm" -> LLM
         "logic" -> LOGIC
         "tool" -> TOOL
+        "bash" -> BASH
         "read-file" -> READ_FILE
         "write-file" -> WRITE_FILE
         else -> JBColor(0xDDDDDD, 0x444444)
