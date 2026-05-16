@@ -6,8 +6,10 @@ import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.CollectionListModel
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -17,7 +19,6 @@ import me.drew.flai.ui.model.GateStatus
 import me.drew.flai.ui.service.FlaiPipelineUiService
 import me.drew.flai.ui.util.coroutineScope
 import java.awt.BorderLayout
-import java.awt.FlowLayout
 import java.awt.Font
 import javax.swing.*
 
@@ -35,12 +36,16 @@ class ExecutionLogPanel(
     }
 
     init {
-        val clearButton = JButton("Clear").apply {
-            addActionListener { service.clearLog() }
-        }
-        val header = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)).apply {
-            add(JLabel("Execution Log").apply { font = font.deriveFont(Font.BOLD) })
-            add(clearButton)
+        val clearButton = iconButton(AllIcons.Actions.GC, "Clear") { service.clearLog() }
+        val header = JPanel(BorderLayout(JBUI.scale(6), 0)).apply {
+            isOpaque = false
+            border = JBUI.Borders.empty(JBUI.scale(6), JBUI.scale(8), JBUI.scale(6), JBUI.scale(4))
+            add(JBLabel("EXECUTION LOG").apply {
+                font = font.deriveFont(Font.BOLD, JBUI.scale(10).toFloat())
+                foreground = UIManager.getColor("Label.disabledForeground")
+            }, BorderLayout.WEST)
+            add(JSeparator(JSeparator.HORIZONTAL), BorderLayout.CENTER)
+            add(clearButton, BorderLayout.EAST)
         }
         add(header, BorderLayout.NORTH)
         add(JBScrollPane(logList), BorderLayout.CENTER)

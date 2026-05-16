@@ -1,6 +1,9 @@
 package me.drew.flai.ui.visual
 
 import com.intellij.icons.AllIcons
+import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTextField
+import com.intellij.util.ui.JBUI
 import me.drew.flai.domain.model.*
 import me.drew.flai.infrastructure.tool.IdeToolRegistry
 import java.awt.*
@@ -106,7 +109,7 @@ class GatePropertySections(
             val origBorder = border
             addFocusListener(object : java.awt.event.FocusAdapter() {
                 override fun focusGained(e: java.awt.event.FocusEvent) {
-                    border = BorderFactory.createLineBorder(Color(55, 120, 255), 2)
+                    border = BorderFactory.createLineBorder(FlaiEditorTheme.SELECTION_OUTLINE, 2)
                 }
                 override fun focusLost(e: java.awt.event.FocusEvent) {
                     border = origBorder
@@ -632,7 +635,7 @@ class GatePropertySections(
     }
 
     fun buildTextField(value: String, editableList: MutableList<JComponent>, onChange: (String) -> Unit): JTextField {
-        val field = JTextField(value)
+        val field = JBTextField(value)
         editableList.add(field)
         field.document.addDocumentListener(object : javax.swing.event.DocumentListener {
             override fun insertUpdate(e: javax.swing.event.DocumentEvent) = onChange(field.text)
@@ -643,7 +646,7 @@ class GatePropertySections(
         field.addFocusListener(object : java.awt.event.FocusAdapter() {
             override fun focusGained(e: java.awt.event.FocusEvent) {
                 field.border = BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(Color(55, 120, 255), 2),
+                    BorderFactory.createLineBorder(FlaiEditorTheme.SELECTION_OUTLINE, 2),
                     BorderFactory.createEmptyBorder(1, 1, 1, 1),
                 )
             }
@@ -655,13 +658,16 @@ class GatePropertySections(
     }
 
     fun labeledRow(labelText: String, field: JComponent): JPanel {
-        return JPanel(BorderLayout(4, 0)).apply {
-            add(JLabel("$labelText:").apply {
-                preferredSize = Dimension(110, 32)
-                font = this.font.deriveFont(Font.PLAIN, 12f)
-            }, BorderLayout.WEST)
+        return JPanel(BorderLayout(JBUI.scale(4), 0)).apply {
+            isOpaque = false
+            val lbl = JBLabel("$labelText:").apply {
+                preferredSize = Dimension(JBUI.scale(90), JBUI.scale(28))
+                font = font.deriveFont(Font.PLAIN, JBUI.scale(11).toFloat())
+                foreground = UIManager.getColor("Label.disabledForeground")
+            }
+            add(lbl, BorderLayout.WEST)
             add(field, BorderLayout.CENTER)
-            maximumSize = Dimension(Int.MAX_VALUE, 32)
+            maximumSize = Dimension(Int.MAX_VALUE, JBUI.scale(28))
         }
     }
 
@@ -670,14 +676,30 @@ class GatePropertySections(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             alignmentX = LEFT_ALIGNMENT
             maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
-            val titledBorder = BorderFactory.createTitledBorder(title)
-            (titledBorder as javax.swing.border.TitledBorder).titleFont =
-                font.deriveFont(Font.BOLD, 13f)
-            border = BorderFactory.createCompoundBorder(
-                BorderFactory.createEmptyBorder(4, 0, 4, 0),
-                titledBorder,
-            )
-            for (c in contents) add(c)
+            isOpaque = false
+            border = JBUI.Borders.empty(8, 0, 4, 0)
+
+            val titleRow = JPanel(BorderLayout(JBUI.scale(6), 0)).apply {
+                alignmentX = LEFT_ALIGNMENT
+                isOpaque = false
+                maximumSize = Dimension(Int.MAX_VALUE, JBUI.scale(20))
+                val lbl = JBLabel(title.uppercase()).apply {
+                    font = font.deriveFont(Font.BOLD, JBUI.scale(10).toFloat())
+                    foreground = UIManager.getColor("Label.disabledForeground")
+                }
+                add(lbl, BorderLayout.WEST)
+                add(JSeparator(JSeparator.HORIZONTAL), BorderLayout.CENTER)
+            }
+            add(titleRow)
+
+            val contentWrapper = JPanel().apply {
+                layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                alignmentX = LEFT_ALIGNMENT
+                isOpaque = false
+                border = JBUI.Borders.empty(4, 0, 0, 0)
+                for (c in contents) add(c)
+            }
+            add(contentWrapper)
         }
     }
 

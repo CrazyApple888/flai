@@ -1,20 +1,24 @@
 package me.drew.flai.ui.toolwindow
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
 import com.intellij.ui.CollectionListModel
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.drew.flai.ui.editor.FlaiIcons
 import me.drew.flai.ui.model.UiPipeline
 import me.drew.flai.ui.service.FlaiPipelineUiService
 import me.drew.flai.ui.util.coroutineScope
 import java.awt.BorderLayout
-import java.awt.FlowLayout
+import java.awt.Font
 import javax.swing.*
 
 class PipelineListPanel(
@@ -41,14 +45,18 @@ class PipelineListPanel(
     }
 
     init {
-        val refreshButton = JButton("Refresh").apply {
-            addActionListener { service.refresh() }
+        val refreshButton = iconButton(AllIcons.Actions.Refresh, "Refresh") { service.refresh() }
+        val header = JPanel(BorderLayout(JBUI.scale(6), 0)).apply {
+            isOpaque = false
+            border = JBUI.Borders.empty(JBUI.scale(6), JBUI.scale(8), JBUI.scale(6), JBUI.scale(4))
+            add(JBLabel("PIPELINES").apply {
+                font = font.deriveFont(Font.BOLD, JBUI.scale(10).toFloat())
+                foreground = UIManager.getColor("Label.disabledForeground")
+            }, BorderLayout.WEST)
+            add(JSeparator(JSeparator.HORIZONTAL), BorderLayout.CENTER)
+            add(refreshButton, BorderLayout.EAST)
         }
-        val toolbar = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)).apply {
-            add(JLabel("Pipelines"))
-            add(refreshButton)
-        }
-        add(toolbar, BorderLayout.NORTH)
+        add(header, BorderLayout.NORTH)
         add(JBScrollPane(jbList), BorderLayout.CENTER)
 
         // Update list when pipelines change
@@ -94,6 +102,7 @@ class PipelineListPanel(
             selected: Boolean,
             hasFocus: Boolean,
         ) {
+            icon = FlaiIcons.PIPELINE_FILE
             append(value.name, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
             append("  ${value.gateCount} gates", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
         }

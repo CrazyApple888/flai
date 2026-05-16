@@ -2,7 +2,9 @@ package me.drew.flai.ui.visual
 
 import com.intellij.ui.JBColor
 import me.drew.flai.domain.model.*
+import me.drew.flai.ui.editor.FlaiIcons
 import java.awt.Color
+import javax.swing.Icon
 
 object FlaiEditorTheme {
     const val GRID_SIZE = 20 // model-space px
@@ -47,6 +49,17 @@ object FlaiEditorTheme {
         is BashGate -> BASH
         is ReadFileGate -> READ_FILE
         is WriteFileGate -> WRITE_FILE
+    }
+
+    fun iconFor(gate: Gate): Icon = when (gate) {
+        is InputGate -> FlaiIcons.GATE_INPUT
+        is OutputGate -> FlaiIcons.GATE_OUTPUT
+        is LlmGate -> FlaiIcons.GATE_LLM
+        is LogicGate -> FlaiIcons.GATE_LOGIC
+        is ToolGate -> FlaiIcons.GATE_TOOL
+        is BashGate -> FlaiIcons.GATE_TOOL
+        is ReadFileGate -> FlaiIcons.GATE_READ_FILE
+        is WriteFileGate -> FlaiIcons.GATE_WRITE_FILE
     }
 
     fun accentForType(gateType: String): Color = when (gateType) {
