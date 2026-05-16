@@ -4,6 +4,7 @@ import com.intellij.icons.AllIcons
 import me.drew.flai.domain.model.*
 import me.drew.flai.infrastructure.tool.IdeToolRegistry
 import java.awt.*
+import java.awt.Component.LEFT_ALIGNMENT
 import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
@@ -532,6 +533,8 @@ class GatePropertySections(
 
         val rowsHolder = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
         }
 
         fun syncMap() {
@@ -620,6 +623,8 @@ class GatePropertySections(
 
         val mappingContent = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
             add(rowsHolder)
             add(addBtn)
         }
@@ -663,6 +668,8 @@ class GatePropertySections(
     fun cardPanel(title: String, vararg contents: JComponent): JPanel {
         return JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            alignmentX = LEFT_ALIGNMENT
+            maximumSize = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
             val titledBorder = BorderFactory.createTitledBorder(title)
             (titledBorder as javax.swing.border.TitledBorder).titleFont =
                 font.deriveFont(Font.BOLD, 13f)
