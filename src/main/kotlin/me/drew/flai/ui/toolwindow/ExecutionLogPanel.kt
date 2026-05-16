@@ -39,7 +39,7 @@ class ExecutionLogPanel(
         val clearButton = iconButton(AllIcons.Actions.GC, "Clear") { service.clearLog() }
         val header = JPanel(BorderLayout(JBUI.scale(6), 0)).apply {
             isOpaque = false
-            border = JBUI.Borders.empty(JBUI.scale(6), JBUI.scale(8), JBUI.scale(6), JBUI.scale(4))
+            border = JBUI.Borders.empty(JBUI.scale(6), JBUI.scale(8), JBUI.scale(6), JBUI.scale(8))
             add(JBLabel("EXECUTION LOG").apply {
                 font = font.deriveFont(Font.BOLD, JBUI.scale(10).toFloat())
                 foreground = UIManager.getColor("Label.disabledForeground")
@@ -48,7 +48,7 @@ class ExecutionLogPanel(
             add(clearButton, BorderLayout.EAST)
         }
         add(header, BorderLayout.NORTH)
-        add(JBScrollPane(logList), BorderLayout.CENTER)
+        add(roundedWrapper(JBScrollPane(logList)), BorderLayout.CENTER)
 
         scope.launch {
             service.logRows.onEach { rows ->

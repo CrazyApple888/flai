@@ -48,7 +48,7 @@ class PipelineListPanel(
         val refreshButton = iconButton(AllIcons.Actions.Refresh, "Refresh") { service.refresh() }
         val header = JPanel(BorderLayout(JBUI.scale(6), 0)).apply {
             isOpaque = false
-            border = JBUI.Borders.empty(JBUI.scale(6), JBUI.scale(8), JBUI.scale(6), JBUI.scale(4))
+            border = JBUI.Borders.empty(JBUI.scale(6), JBUI.scale(8), JBUI.scale(6), JBUI.scale(8))
             add(JBLabel("PIPELINES").apply {
                 font = font.deriveFont(Font.BOLD, JBUI.scale(10).toFloat())
                 foreground = UIManager.getColor("Label.disabledForeground")
@@ -57,7 +57,7 @@ class PipelineListPanel(
             add(refreshButton, BorderLayout.EAST)
         }
         add(header, BorderLayout.NORTH)
-        add(JBScrollPane(jbList), BorderLayout.CENTER)
+        add(roundedWrapper(JBScrollPane(jbList)), BorderLayout.CENTER)
 
         // Update list when pipelines change
         scope.launch {

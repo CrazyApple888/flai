@@ -69,7 +69,7 @@ class PipelineDetailPanel(
             })
             add(Box.createVerticalGlue())
         }
-        inputsContainer.add(emptyPanel, BorderLayout.CENTER)
+        inputsContainer.add(roundedWrapper(emptyPanel), BorderLayout.CENTER)
         inputsContainer.revalidate()
         inputsContainer.repaint()
     }
@@ -135,7 +135,7 @@ class PipelineDetailPanel(
         content.add(JPanel(), gbc)
 
         inputsContainer.removeAll()
-        inputsContainer.add(JBScrollPane(content), BorderLayout.CENTER)
+        inputsContainer.add(roundedWrapper(JBScrollPane(content)), BorderLayout.CENTER)
         inputsContainer.revalidate()
         inputsContainer.repaint()
     }
