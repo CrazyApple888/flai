@@ -1,8 +1,10 @@
 package me.drew.flai.ui.service
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -74,9 +76,16 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
     fun refresh() {
         serviceScope.launch {
             try {
+                withContext(Dispatchers.Main) {
+                    WriteIntentReadAction.run {
+                        FileDocumentManager.getInstance().saveAllDocuments()
+                    }
+                }
                 repository.refreshVfs()
                 val uiPipelines = loadAllWithPaths()
                 _pipelines.value = uiPipelines
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 LOG.error("Pipeline refresh failed", e)
             }
