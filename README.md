@@ -4,48 +4,125 @@
 [![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 
-## Template ToDo list
-- [x] Create a new [IntelliJ Platform Plugin Template][template] project.
-- [ ] Get familiar with the [template documentation][template].
-- [ ] Adjust the [group](./gradle.properties), as well as the [id](./src/main/resources/META-INF/plugin.xml), [name](./src/main/resources/META-INF/plugin.xml), and [sources package](./src/main/kotlin).
-- [ ] Adjust the plugin description in `README` (see [Tips][docs:plugin-description])
-- [ ] Review the [Legal Agreements](https://plugins.jetbrains.com/docs/marketplace/legal-agreements.html?from=IJPluginTemplate).
-- [ ] [Publish a plugin manually](https://plugins.jetbrains.com/docs/intellij/publishing-plugin.html?from=IJPluginTemplate) for the first time.
-- [ ] Set the `MARKETPLACE_ID` in the above README badges. You can obtain it once the plugin is published to JetBrains Marketplace.
-- [ ] Set the [Plugin Signing](https://plugins.jetbrains.com/docs/intellij/plugin-signing.html?from=IJPluginTemplate) related [secrets](https://github.com/JetBrains/intellij-platform-plugin-template#environment-variables).
-- [ ] Set the [Deployment Token](https://plugins.jetbrains.com/docs/marketplace/plugin-upload.html?from=IJPluginTemplate).
-- [ ] Click the <kbd>Watch</kbd> button on the top of the [IntelliJ Platform Plugin Template][template] to be notified about releases containing new features and fixes.
+> **Agentic pipelines for your IDE.** Wire LLMs, IDE tools, shell commands, and file I/O into reusable YAML workflows — and run them from a gutter icon.
 
 <!-- Plugin description -->
-This Fancy IntelliJ Platform Plugin is going to be your implementation of the brilliant ideas that you have.
+**flai** turns IntelliJ-based IDEs into an agent runtime. Define multi-step LLM pipelines as plain YAML, drop them in `.flai/`, and execute them on any file with a single click. No external orchestrator, no separate UI, no copy-paste between ChatGPT and your editor.
 
-This specific section is a source for the [plugin.xml](/src/main/resources/META-INF/plugin.xml) file which will be extracted by the [Gradle](/build.gradle.kts) during the build process.
+Each pipeline is a graph of **gates** — LLM calls, branching logic, shell commands, file reads/writes, and IDE tools — connected by edges. Outputs of one gate flow into the next via a shared execution context. Credentials live in IntelliJ's `PasswordSafe`. Skills (reusable instruction bundles) are just markdown files on disk.
 
-To keep everything working, do not remove `<!-- ... -->` sections. 
+Built for engineers who want their AI workflows to live in the same repo as the code they operate on — versioned, reviewable, and runnable without leaving the IDE.
 <!-- Plugin description end -->
+
+---
+
+## Why flai
+
+- **Pipelines as code.** YAML files in `.flai/`, checked into git. Reviewable in PRs, diffable, branchable.
+- **Native IDE integration.** Gutter run icon on `*.flai.yaml`, dedicated tool window, live execution log.
+- **Bring your own model.** Anthropic and OpenAI response shapes supported out of the box. Endpoint and credentials per-gate.
+- **Tools that touch your code.** Built-in `ide.readFile`, `ide.searchSymbol`, `ide.runCommand`, plus first-class `bash`, `read-file`, and `write-file` gates.
+- **Skills, not megaprompts.** Compose reusable instruction files (`.flai/skills/*.md`) per LLM gate.
+- **Branching logic.** `logic` gates with `comparison` / `switch` / `always` conditions route execution across paths.
+- **Secrets stay local.** API keys stored via IntelliJ `PasswordSafe` under `flai/<credentialId>`. Never written to YAML.
+
+## Gate types
+
+| Gate         | Purpose                                                                   |
+|--------------|---------------------------------------------------------------------------|
+| `input`      | Entry point. Seeds context from typed schema (`STRING`/`NUMBER`/`BOOLEAN`/`JSON`). |
+| `llm`        | Calls an LLM endpoint with templated prompt and optional skills.          |
+| `logic`      | Branches on context variables (comparison, switch, always).               |
+| `tool`       | Invokes a registered IDE tool (file read, symbol search, run command).    |
+| `bash`       | Runs a non-interactive shell command with timeout and env overlay.        |
+| `read-file`  | Reads a file from disk into context.                                      |
+| `write-file` | Writes a context variable to disk (`overwrite` / `append` / `fail-if-exists`). |
+| `output`     | Terminal gate. Surfaces selected context values as final results.         |
+
+Full spec: [`docs/pipeline-yaml-spec.md`](docs/pipeline-yaml-spec.md).
+
+## Quick start
+
+1. **Install** flai (see below).
+2. Create `.flai/` at your project root.
+3. Drop in a pipeline file, e.g. `.flai/code-review.flai.yaml`:
+
+   ```yaml
+   id: code-review
+   name: Code Review
+   entry: inputs
+
+   gates:
+     inputs:
+       type: input
+       schema:
+         - { name: file_path, type: STRING, required: true }
+
+     read:
+       type: read-file
+       path: "{{file_path}}"
+       outputKey: file_content
+
+     review:
+       type: llm
+       promptTemplate: |
+         Review this code for correctness and style:
+
+         ```
+         {{file_content}}
+         ```
+       endpoint:
+         url: https://api.anthropic.com/v1/messages
+         credentialId: anthropic-key
+         model: claude-sonnet-4-6
+
+     result:
+       type: output
+       outputMapping: { review: response }
+
+   edges:
+     - { from: inputs, to: read }
+     - { from: read,   to: review }
+     - { from: review, to: result }
+   ```
+
+4. **Store your API key.** `Settings → Appearance & Behavior → System Settings → Passwords`, add entry under service name `flai/anthropic-key`.
+5. **Run.** Open the YAML file and click the gutter run icon, or use the **Flai Pipelines** tool window on the right.
 
 ## Installation
 
-- Using the IDE built-in plugin system:
+- **From JetBrains Marketplace** (recommended):
+  <kbd>Settings/Preferences</kbd> → <kbd>Plugins</kbd> → <kbd>Marketplace</kbd> → search **flai** → <kbd>Install</kbd>
 
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "flai"</kbd> >
-  <kbd>Install</kbd>
+- **From the marketplace site:** [plugins.jetbrains.com/plugin/MARKETPLACE_ID](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) → <kbd>Install to ...</kbd>
 
-- Using JetBrains Marketplace:
+- **Manually:** download the [latest release](https://github.com/CrazyApple888/flai/releases/latest) →
+  <kbd>Settings/Preferences</kbd> → <kbd>Plugins</kbd> → <kbd>⚙️</kbd> → <kbd>Install plugin from disk…</kbd>
 
-  Go to [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) and install it by clicking the <kbd>Install to ...</kbd> button in case your IDE is running.
+**Compatibility:** IntelliJ IDEA 2025.2+ (and other IntelliJ Platform IDEs on the same build).
 
-  You can also download the [latest release](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID/versions) from JetBrains Marketplace and install it manually using
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
+## Architecture
 
-- Manually:
+Hexagonal — pure-Kotlin domain, IntelliJ-aware infrastructure, Swing UI.
 
-  Download the [latest release](https://github.com/CrazyApple888/flai/releases/latest) and install it manually using
-  <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
+```
+domain/         Pipeline, Gate (sealed), ExecutionContext, ports
+usecase/        ListPipelines, LoadPipeline, RunPipeline
+infrastructure/ executors per gate, HttpLlmClient, YAML parser, IDE tools
+ui/             tool window, gutter marker, FlaiPipelineUiService (StateFlows)
+```
 
+Adding a new gate type: sealed subclass in `Gate.kt` → `DefaultXxxGateExecutor` → wire in `FlaiPipelineUiService` → parser branch in `YamlPipelineParser.parseGate()`. See [`CLAUDE.md`](CLAUDE.md) for full conventions.
 
----
-Plugin based on the [IntelliJ Platform Plugin Template][template].
+## Development
 
-[template]: https://github.com/JetBrains/intellij-platform-plugin-template
-[docs:plugin-description]: https://plugins.jetbrains.com/docs/intellij/plugin-user-experience.html#plugin-description-and-presentation
+```bash
+./gradlew runIde         # launch sandbox IDE with the plugin
+./gradlew test           # run tests
+./gradlew buildPlugin    # produce distributable ZIP
+./gradlew verifyPlugin   # check IDE compatibility
+```
+
+## Documentation
+
+- [Pipeline YAML specification](docs/pipeline-yaml-spec.md) — every gate, every field, every example.
