@@ -2,7 +2,6 @@ package me.drew.flai.ui.visual
 
 import com.intellij.ui.JBColor
 import me.drew.flai.domain.model.*
-import me.drew.flai.ui.editor.FlaiIcons
 import me.drew.flai.ui.model.GateStatus
 import java.awt.*
 import java.awt.geom.*
@@ -282,14 +281,5 @@ internal class CanvasRenderer {
         return if (branchIndex >= 0) "${branchIndex + 1}" else "D"
     }
 
-    private fun gateIcon(gate: Gate): Icon = when (gate) {
-        is InputGate -> FlaiIcons.GATE_INPUT
-        is OutputGate -> FlaiIcons.GATE_OUTPUT
-        is LlmGate -> FlaiIcons.GATE_LLM
-        is LogicGate -> FlaiIcons.GATE_LOGIC
-        is ToolGate -> FlaiIcons.GATE_TOOL
-        is BashGate -> FlaiIcons.GATE_TOOL
-        is ReadFileGate -> FlaiIcons.GATE_READ_FILE
-        is WriteFileGate -> FlaiIcons.GATE_WRITE_FILE
-    }
+    private fun gateIcon(gate: Gate): Icon = FlaiEditorTheme.iconFor(gate)
 }
