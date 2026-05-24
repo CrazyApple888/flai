@@ -79,8 +79,8 @@ object VisualPipelineValidator {
                 if (gate.endpointConfig.url.isEmpty()) {
                     errors.add(ValidationError(id, "endpointConfig.url", "endpoint url is required for LlmGate '$id'"))
                 }
-                if (gate.endpointConfig.credentialId.isEmpty()) {
-                    errors.add(ValidationError(id, "endpointConfig.credentialId", "endpoint credentialId is required for LlmGate '$id'"))
+                if (gate.endpointConfig.credentialId.isEmpty() && gate.endpointConfig.apiKeyVar.isNullOrEmpty()) {
+                    errors.add(ValidationError(id, "endpointConfig.credentialId", "endpoint must have credentialId or apiKeyVar for LlmGate '$id'"))
                 }
                 if (gate.endpointConfig.model.isEmpty()) {
                     errors.add(ValidationError(id, "endpointConfig.model", "endpoint model is required for LlmGate '$id'"))

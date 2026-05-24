@@ -1,0 +1,47 @@
+id: template-llm
+name: Template LLM Pipeline
+description: Minimal template — input prompt, LLM call, output response.
+entry: start
+
+gates:
+  start:
+    type: input
+    label: Input
+    schema:
+      - name: prompt
+        type: STRING
+        required: true
+        default: "Explain what a Kotlin sealed class is in one paragraph."
+      - name: api_key
+        type: STRING
+        required: false
+        default: ""
+
+  ask:
+    type: llm
+    label: Ask LLM
+    promptTemplate: |
+      {{prompt}}
+    outputMapping:
+      response: response
+    endpoint:
+      url: https://api.anthropic.com/v1/messages
+      # Use apiKeyVar to pass key from context (set via input, bash, or read-file gate).
+      # Use credentialId to pull from IntelliJ PasswordSafe instead.
+      apiKeyVar: api_key
+      credentialId: anthropic-key
+      model: claude-sonnet-4-6
+      params:
+        max_tokens: 1024
+
+  out:
+    type: output
+    label: Output
+    outputMapping:
+      response: response
+
+edges:
+  - from: start
+    to: ask
+  - from: ask
+    to: out

@@ -231,12 +231,17 @@ class YamlPipelineParser {
         val m = obj as? Map<String, Any>
             ?: throw PipelineLoadException("LLM gate '${gateId.value}' missing 'endpoint'")
         val params = (m["params"] as? Map<String, Any>)?.toMap() ?: emptyMap()
+        val credentialId = m["credentialId"] as? String ?: ""
+        val apiKeyVar = m["apiKeyVar"] as? String
+        if (credentialId.isBlank() && apiKeyVar == null) {
+            throw PipelineLoadException("Endpoint must have 'credentialId' or 'apiKeyVar'")
+        }
         return LlmEndpointConfig(
             url = m["url"] as? String ?: throw PipelineLoadException("Endpoint missing 'url'"),
-            credentialId = m["credentialId"] as? String
-                ?: throw PipelineLoadException("Endpoint missing 'credentialId'"),
+            credentialId = credentialId,
             model = m["model"] as? String ?: throw PipelineLoadException("Endpoint missing 'model'"),
             params = params,
+            apiKeyVar = apiKeyVar,
         )
     }
 

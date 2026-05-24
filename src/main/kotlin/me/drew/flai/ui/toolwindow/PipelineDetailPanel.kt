@@ -2,6 +2,7 @@ package me.drew.flai.ui.toolwindow
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
+import com.intellij.ui.JBColor
 import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -110,14 +111,25 @@ class PipelineDetailPanel(
             }
         }
 
-        // Run button
+        // Run button + error label
         val runButton = JButton("Run Pipeline")
+        val errorLabel = JBLabel("").apply {
+            isVisible = false
+            foreground = JBColor.RED
+            font = font.deriveFont(Font.PLAIN, JBUI.scale(11).toFloat())
+        }
         executionStateJob?.cancel()
         executionStateJob = scope.launch {
             service.executionState.onEach { state ->
                 withContext(Dispatchers.Main) {
                     runButton.isEnabled = state !is ExecutionUiState.Running
                     runButton.text = if (state is ExecutionUiState.Running) "Running…" else "Run Pipeline"
+                    if (state is ExecutionUiState.Failed) {
+                        errorLabel.text = state.reason
+                        errorLabel.isVisible = true
+                    } else {
+                        errorLabel.isVisible = false
+                    }
                 }
             }.collect {}
         }
@@ -129,6 +141,10 @@ class PipelineDetailPanel(
         gbc.gridy++; gbc.gridx = 0; gbc.gridwidth = 2; gbc.weightx = 1.0
         gbc.insets = Insets(JBUI.scale(8), JBUI.scale(8), JBUI.scale(4), JBUI.scale(8))
         content.add(runButton, gbc)
+
+        gbc.gridy++
+        gbc.insets = Insets(0, JBUI.scale(8), JBUI.scale(4), JBUI.scale(8))
+        content.add(errorLabel, gbc)
 
         // Filler
         gbc.gridy++; gbc.weighty = 1.0; gbc.insets = Insets(0, 0, 0, 0)

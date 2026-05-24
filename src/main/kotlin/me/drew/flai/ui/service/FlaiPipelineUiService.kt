@@ -105,7 +105,9 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         runningJob = serviceScope.launch {
             runUseCase.invoke(pipeline.id, inputs)
                 .catch { e ->
-                    _executionState.value = ExecutionUiState.Failed(e.message ?: "Unknown error")
+                    val message = e.message ?: "Unknown error"
+                    _logRows.value += GateRow("Error", GateStatus.FAILURE, message = message)
+                    _executionState.value = ExecutionUiState.Failed(message)
                 }
                 .collect { event -> handleEvent(event) }
         }
@@ -176,8 +178,13 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
                 }
             }
 
-            is ExecutionEvent.PipelineFailed ->
-                _executionState.value = ExecutionUiState.Failed(event.error.message ?: "Unknown error")
+            is ExecutionEvent.PipelineFailed -> {
+                val message = event.error.message ?: "Unknown error"
+                if (_logRows.value.none { it.status == GateStatus.FAILURE }) {
+                    _logRows.value += GateRow("Pipeline failed", GateStatus.FAILURE, message = message)
+                }
+                _executionState.value = ExecutionUiState.Failed(message)
+            }
         }
     }
 

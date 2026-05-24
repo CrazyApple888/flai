@@ -361,6 +361,10 @@ class FlaiPipelineFileEditor(
                 withContext(Dispatchers.Main) {
                     when (state) {
                         is ExecutionUiState.Running -> setEditingEnabled(false)
+                        is ExecutionUiState.Failed -> {
+                            setEditingEnabled(true)
+                            showError("Run failed: ${state.reason}")
+                        }
                         else -> setEditingEnabled(true)
                     }
                 }
