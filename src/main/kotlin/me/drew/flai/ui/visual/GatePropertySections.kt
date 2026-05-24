@@ -135,11 +135,14 @@ class GatePropertySections(
         val promptCard = cardPanel("Prompt Template", promptContent)
 
         val endpointContent = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
-        endpointContent.add(labeledRow("Endpoint URL", buildTextField(gate.endpointConfig.url, editableList) { v ->
+        endpointContent.add(labeledRow("URL", buildTextField(gate.endpointConfig.url, editableList) { v ->
             onGateUpdated(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(url = v)))
         }))
         endpointContent.add(labeledRow("Credential ID", buildTextField(gate.endpointConfig.credentialId, editableList) { v ->
             onGateUpdated(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(credentialId = v)))
+        }))
+        endpointContent.add(labeledRow("API Key Var", buildTextField(gate.endpointConfig.apiKeyVar ?: "", editableList) { v ->
+            onGateUpdated(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(apiKeyVar = v.ifBlank { null })))
         }))
         endpointContent.add(labeledRow("Model", buildTextField(gate.endpointConfig.model, editableList) { v ->
             onGateUpdated(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(model = v)))

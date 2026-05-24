@@ -21,7 +21,9 @@ class DefaultLlmGateExecutor(
             val skillBodies: List<String> = skillLoader.load(gate.skills)
             val renderedTemplate: String = renderer.render(gate.promptTemplate, context.snapshot())
             val mergedPrompt: String = buildMergedPrompt(skillBodies, renderedTemplate)
-            val response = llmClient.complete(gate.endpointConfig, mergedPrompt)
+            val resolvedApiKey: String? = gate.endpointConfig.apiKeyVar
+                ?.let { varName -> context.get(varName)?.toString() }
+            val response = llmClient.complete(gate.endpointConfig, mergedPrompt, resolvedApiKey)
             GateResult.Success(outputs = mapOf("response" to response))
         } catch (e: CancellationException) {
             throw e

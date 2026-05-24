@@ -20,10 +20,11 @@ class HttpLlmClient : LlmClient {
         .build()
     private val gson = Gson()
 
-    override suspend fun complete(config: LlmEndpointConfig, prompt: String): String =
+    override suspend fun complete(config: LlmEndpointConfig, prompt: String, apiKey: String?): String =
         withContext(Dispatchers.IO) {
-            val apiKey = resolveCredential(config.credentialId)
-                ?: throw IllegalStateException("No credential found for id '${config.credentialId}'")
+            val apiKey = apiKey
+                ?: resolveCredential(config.credentialId).takeIf { !it.isNullOrBlank() }
+                ?: throw IllegalStateException("No API key: set apiKeyVar in pipeline or store credential '${config.credentialId}' in PasswordSafe")
 
             val body = buildRequestBody(config, prompt)
             val json = gson.toJson(body)

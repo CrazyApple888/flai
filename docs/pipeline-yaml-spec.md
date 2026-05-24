@@ -93,6 +93,27 @@ ask-llm:
 **`inputMapping`** is only needed when template variable names differ from context keys.
 If omitted, `{{varName}}` resolves directly from the context key `varName`.
 
+**API key resolution** — two options, checked in order:
+
+1. `apiKeyVar` — names a context variable whose value is used as the API key at runtime. Lets a prior `bash` or `read-file` gate supply the key.
+2. `credentialId` — key name looked up in IntelliJ `PasswordSafe` under service `"flai/<credentialId>"`.
+
+Exactly one must be present. Both can be present; `apiKeyVar` takes precedence when its context variable is set.
+
+```yaml
+# Option A: key from a prior gate (e.g. bash gate that runs `cat ~/.secrets/api-key`)
+endpoint:
+  url: https://api.anthropic.com/v1/messages
+  apiKeyVar: my_api_key   # context variable name
+  model: claude-sonnet-4-6
+
+# Option B: key from PasswordSafe (default)
+endpoint:
+  url: https://api.anthropic.com/v1/messages
+  credentialId: anthropic-key
+  model: claude-sonnet-4-6
+```
+
 **`outputMapping`** default when omitted: `{ "response" → "response" }`.
 The raw LLM text is always stored under key `"response"` in the executor output; map it to whatever context key you need.
 

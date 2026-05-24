@@ -41,9 +41,10 @@ data class LlmGate(
 
 data class LlmEndpointConfig(
     val url: String,
-    val credentialId: String,
+    val credentialId: String = "",
     val model: String,
     val params: Map<String, Any?> = emptyMap(),
+    val apiKeyVar: String? = null,
 )
 
 data class LogicGate(

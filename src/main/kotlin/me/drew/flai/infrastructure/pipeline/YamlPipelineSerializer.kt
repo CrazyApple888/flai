@@ -91,7 +91,12 @@ class YamlPipelineSerializer {
                 }
                 sb.appendLine("    endpoint:")
                 sb.appendLine("      url: ${escapeScalar(gate.endpointConfig.url)}")
-                sb.appendLine("      credentialId: ${escapeScalar(gate.endpointConfig.credentialId)}")
+                if (gate.endpointConfig.credentialId.isNotBlank()) {
+                    sb.appendLine("      credentialId: ${escapeScalar(gate.endpointConfig.credentialId)}")
+                }
+                gate.endpointConfig.apiKeyVar?.let {
+                    sb.appendLine("      apiKeyVar: ${escapeScalar(it)}")
+                }
                 sb.appendLine("      model: ${escapeScalar(gate.endpointConfig.model)}")
                 if (gate.endpointConfig.params.isNotEmpty()) {
                     sb.appendLine("      params:")
