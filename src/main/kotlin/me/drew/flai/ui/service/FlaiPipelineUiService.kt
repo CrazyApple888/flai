@@ -23,8 +23,20 @@ import me.drew.flai.ui.model.*
 import me.drew.flai.usecase.ListPipelinesUseCase
 import me.drew.flai.usecase.RunPipelineUseCase
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 private val LOG = logger<FlaiPipelineUiService>()
+
+/**
+ * Merges [retained] values over spec defaults. Only keys present in [specs] are included;
+ * stale keys from [retained] that are absent from [specs] are implicitly discarded (FR-9).
+ */
+internal fun mergeInputs(
+    specs: List<InputFieldSpec>,
+    retained: Map<String, String>,
+): Map<String, String> = specs.associate { spec ->
+    spec.key to (retained[spec.key] ?: spec.defaultValue)
+}
 
 @Service(Service.Level.PROJECT)
 class FlaiPipelineUiService(private val project: Project) : Disposable {
@@ -72,6 +84,15 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
     val logRows: StateFlow<List<GateRow>> = _logRows.asStateFlow()
 
     private var runningJob: Job? = null
+
+    private val savedInputs: ConcurrentHashMap<PipelineId, Map<String, String>> = ConcurrentHashMap()
+
+    fun saveInputValues(pipelineId: PipelineId, values: Map<String, String>) {
+        savedInputs[pipelineId] = values.toMap()
+    }
+
+    fun getSavedInputValues(pipelineId: PipelineId): Map<String, String> =
+        savedInputs[pipelineId] ?: emptyMap()
 
     fun refresh() {
         serviceScope.launch {
@@ -131,9 +152,8 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
                 _pipelines.value = _pipelines.value + pipeline
             }
 
-            run(pipeline, pipeline.inputSpecs
-                .filter { it.defaultValue.isNotEmpty() }
-                .associate { it.key to it.defaultValue })
+            val inputs = mergeInputs(pipeline.inputSpecs, getSavedInputValues(pipeline.id))
+            run(pipeline, inputs)
         }
     }
 

@@ -24,7 +24,13 @@ class GatePropertySections(
     private val onGateUpdated: (nodeSeq: Int, gate: Gate) -> Unit,
     private val onRepaint: () -> Unit,
     private val onRefreshPanel: () -> Unit,
+    private val getGate: (nodeSeq: Int) -> Gate? = { null },
 ) {
+
+    private fun <G : Gate> freshGate(nodeSeq: Int, fallback: G): G {
+        @Suppress("UNCHECKED_CAST")
+        return (getGate(nodeSeq) as? G) ?: fallback
+    }
 
     fun buildBasicInfoFields(nodeSeq: Int, node: VisualNode, model: VisualPipelineModel): SectionResult {
         val editableList = mutableListOf<JComponent>()
@@ -62,7 +68,7 @@ class GatePropertySections(
                 val default = (tableModel.getValueAt(r, 3) as? String)?.takeIf { it.isNotEmpty() }
                 InputField(name, type, required, default)
             }
-            onGateUpdated(nodeSeq, gate.copy(inputSchema = fields))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(inputSchema = fields))
         }
 
         val table = JTable(tableModel).apply {
@@ -119,7 +125,7 @@ class GatePropertySections(
                 override fun insertUpdate(e: javax.swing.event.DocumentEvent) = fire()
                 override fun removeUpdate(e: javax.swing.event.DocumentEvent) = fire()
                 override fun changedUpdate(e: javax.swing.event.DocumentEvent) = fire()
-                fun fire() { onGateUpdated(nodeSeq, gate.copy(promptTemplate = text)) }
+                fun fire() { onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(promptTemplate = text)) }
             })
         }
         firstFocus = promptArea
@@ -136,26 +142,30 @@ class GatePropertySections(
 
         val endpointContent = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
         endpointContent.add(labeledRow("URL", buildTextField(gate.endpointConfig.url, editableList) { v ->
-            onGateUpdated(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(url = v)))
+            val g = freshGate(nodeSeq, gate)
+            onGateUpdated(nodeSeq, g.copy(endpointConfig = g.endpointConfig.copy(url = v)))
         }))
         endpointContent.add(labeledRow("Credential ID", buildTextField(gate.endpointConfig.credentialId, editableList) { v ->
-            onGateUpdated(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(credentialId = v)))
+            val g = freshGate(nodeSeq, gate)
+            onGateUpdated(nodeSeq, g.copy(endpointConfig = g.endpointConfig.copy(credentialId = v)))
         }))
         endpointContent.add(labeledRow("API Key Var", buildTextField(gate.endpointConfig.apiKeyVar ?: "", editableList) { v ->
-            onGateUpdated(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(apiKeyVar = v.ifBlank { null })))
+            val g = freshGate(nodeSeq, gate)
+            onGateUpdated(nodeSeq, g.copy(endpointConfig = g.endpointConfig.copy(apiKeyVar = v.ifBlank { null })))
         }))
         endpointContent.add(labeledRow("Model", buildTextField(gate.endpointConfig.model, editableList) { v ->
-            onGateUpdated(nodeSeq, gate.copy(endpointConfig = gate.endpointConfig.copy(model = v)))
+            val g = freshGate(nodeSeq, gate)
+            onGateUpdated(nodeSeq, g.copy(endpointConfig = g.endpointConfig.copy(model = v)))
         }))
         val endpointCard = cardPanel("Endpoint Config", endpointContent)
 
         val skillsCard = buildSkillsCard(nodeSeq, gate, editableList)
 
         val inputMappingCards = buildMappingSection("Input Mapping", gate.inputMapping, editableList) { map ->
-            onGateUpdated(nodeSeq, gate.copy(inputMapping = map))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(inputMapping = map))
         }
         val outputMappingCards = buildMappingSection("Output Mapping", gate.outputMapping, editableList) { map ->
-            onGateUpdated(nodeSeq, gate.copy(outputMapping = map))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(outputMapping = map))
         }
 
         return SectionResult(
@@ -173,7 +183,7 @@ class GatePropertySections(
 
         fun syncSkills() {
             val skills = (0 until listModel.size).map { listModel.getElementAt(it) }
-            onGateUpdated(nodeSeq, gate.copy(skills = skills))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(skills = skills))
         }
 
         val addBtn = JButton("Add").apply {
@@ -206,7 +216,7 @@ class GatePropertySections(
             override fun removeUpdate(e: DocumentEvent) = save()
             override fun changedUpdate(e: DocumentEvent) = save()
             fun save() {
-                val current = model.nodeBySeq(nodeSeq)?.gate as? LogicGate ?: return
+                val current = freshGate(nodeSeq, gate)
                 onGateUpdated(nodeSeq, current.copy(defaultPort = defaultPortField.text.ifEmpty { null }))
             }
         })
@@ -215,7 +225,7 @@ class GatePropertySections(
             addActionListener {
                 val enabled = isSelected
                 defaultPortField.isEnabled = enabled
-                val current = model.nodeBySeq(nodeSeq)?.gate as? LogicGate ?: return@addActionListener
+                val current = freshGate(nodeSeq, gate)
                 if (enabled) {
                     val name = defaultPortField.text.ifEmpty { "default" }
                     defaultPortField.text = name
@@ -333,9 +343,10 @@ class GatePropertySections(
                             BranchCondition.Comparison(varF?.text ?: "", op, valF?.text ?: "")
                         }
                     }
-                    val updatedBranches = gate.branches.toMutableList()
+                    val fresh = freshGate(nodeSeq, gate)
+                    val updatedBranches = fresh.branches.toMutableList()
                     if (i < updatedBranches.size) updatedBranches[i] = Branch(port, cond)
-                    onGateUpdated(nodeSeq, gate.copy(branches = updatedBranches))
+                    onGateUpdated(nodeSeq, fresh.copy(branches = updatedBranches))
                 }
 
                 condTypeCombo.addActionListener {
@@ -355,10 +366,11 @@ class GatePropertySections(
 
                 val deleteBtn = JButton("Delete Branch").apply {
                     addActionListener {
-                        val updatedBranches = gate.branches.toMutableList()
+                        val fresh = freshGate(nodeSeq, gate)
+                        val updatedBranches = fresh.branches.toMutableList()
                         if (i < updatedBranches.size) {
                             updatedBranches.removeAt(i)
-                            onGateUpdated(nodeSeq, gate.copy(branches = updatedBranches))
+                            onGateUpdated(nodeSeq, fresh.copy(branches = updatedBranches))
                         }
                         onRefreshPanel()
                     }
@@ -376,8 +388,9 @@ class GatePropertySections(
             val addBranchBtn = JButton("Add Branch").apply {
                 alignmentX = JComponent.LEFT_ALIGNMENT
                 addActionListener {
-                    val newBranch = Branch("branch${gate.branches.size + 1}", BranchCondition.Always)
-                    onGateUpdated(nodeSeq, gate.copy(branches = gate.branches + newBranch))
+                    val fresh = freshGate(nodeSeq, gate)
+                    val newBranch = Branch("branch${fresh.branches.size + 1}", BranchCondition.Always)
+                    onGateUpdated(nodeSeq, fresh.copy(branches = fresh.branches + newBranch))
                     onRefreshPanel()
                 }
             }
@@ -402,23 +415,23 @@ class GatePropertySections(
             val combo = JComboBox(toolNames.toTypedArray()).apply {
                 selectedItem = gate.toolName.takeIf { it.isNotEmpty() } ?: toolNames.first()
                 addActionListener {
-                    onGateUpdated(nodeSeq, gate.copy(toolName = selectedItem as? String ?: ""))
+                    onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(toolName = selectedItem as? String ?: ""))
                 }
             }
             editableList.add(combo)
             toolContent.add(labeledRow("Tool", combo))
         } else {
             toolContent.add(labeledRow("Tool Name", buildTextField(gate.toolName, editableList) { v ->
-                onGateUpdated(nodeSeq, gate.copy(toolName = v))
+                onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(toolName = v))
             }))
         }
         val toolCard = cardPanel("Tool Settings", toolContent)
 
         val inputMappingCards = buildMappingSection("Input Mapping", gate.inputMapping, editableList) { map ->
-            onGateUpdated(nodeSeq, gate.copy(inputMapping = map))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(inputMapping = map))
         }
         val outputMappingCards = buildMappingSection("Output Mapping", gate.outputMapping, editableList) { map ->
-            onGateUpdated(nodeSeq, gate.copy(outputMapping = map))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(outputMapping = map))
         }
 
         return SectionResult(
@@ -430,7 +443,7 @@ class GatePropertySections(
     fun buildOutputGateFields(nodeSeq: Int, gate: OutputGate): SectionResult {
         val editableList = mutableListOf<JComponent>()
         val cards = buildMappingSection("Output Mapping", gate.outputMapping, editableList) { map ->
-            onGateUpdated(nodeSeq, gate.copy(outputMapping = map))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(outputMapping = map))
         }
         return SectionResult(cards = cards, editableComponents = editableList)
     }
@@ -446,7 +459,7 @@ class GatePropertySections(
                 override fun removeUpdate(e: DocumentEvent) = save()
                 override fun changedUpdate(e: DocumentEvent) = save()
                 fun save() {
-                    onGateUpdated(nodeSeq, gate.copy(command = text))
+                    onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(command = text))
                 }
             })
         }
@@ -461,26 +474,27 @@ class GatePropertySections(
 
         val settingsCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
         settingsCard.add(labeledRow("Working Dir", buildTextField(gate.workingDirectory, editableList) { v ->
-            onGateUpdated(nodeSeq, gate.copy(workingDirectory = v))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(workingDirectory = v))
         }))
         settingsCard.add(labeledRow("Timeout Sec", buildTextField(gate.timeoutSeconds.toString(), editableList) { v ->
-            val timeout = v.toIntOrNull() ?: gate.timeoutSeconds
-            onGateUpdated(nodeSeq, gate.copy(timeoutSeconds = timeout))
+            val fresh = freshGate(nodeSeq, gate)
+            val timeout = v.toIntOrNull() ?: fresh.timeoutSeconds
+            onGateUpdated(nodeSeq, fresh.copy(timeoutSeconds = timeout))
         }))
         val failOnNonZeroCheck = JCheckBox().apply {
             isSelected = gate.failOnNonZeroExit
             addActionListener {
-                onGateUpdated(nodeSeq, gate.copy(failOnNonZeroExit = isSelected))
+                onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(failOnNonZeroExit = isSelected))
             }
         }
         editableList.add(failOnNonZeroCheck)
         settingsCard.add(labeledRow("Fail Non-Zero", failOnNonZeroCheck))
 
         val environmentCards = buildMappingSection("Environment", gate.environment, editableList) { map ->
-            onGateUpdated(nodeSeq, gate.copy(environment = map))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(environment = map))
         }
         val outputMappingCards = buildMappingSection("Output Mapping", gate.outputMapping, editableList) { map ->
-            onGateUpdated(nodeSeq, gate.copy(outputMapping = map))
+            onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(outputMapping = map))
         }
 
         return SectionResult(
@@ -493,8 +507,8 @@ class GatePropertySections(
     fun buildReadFileGateFields(nodeSeq: Int, gate: ReadFileGate): SectionResult {
         val editableList = mutableListOf<JComponent>()
         val fileCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
-        fileCard.add(labeledRow("Path", buildTextField(gate.path, editableList) { v -> onGateUpdated(nodeSeq, gate.copy(path = v)) }))
-        fileCard.add(labeledRow("Output Key", buildTextField(gate.outputKey, editableList) { v -> onGateUpdated(nodeSeq, gate.copy(outputKey = v)) }))
+        fileCard.add(labeledRow("Path", buildTextField(gate.path, editableList) { v -> onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(path = v)) }))
+        fileCard.add(labeledRow("Output Key", buildTextField(gate.outputKey, editableList) { v -> onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(outputKey = v)) }))
         return SectionResult(
             cards = listOf(cardPanel("File Settings", fileCard)),
             editableComponents = editableList,
@@ -504,8 +518,8 @@ class GatePropertySections(
     fun buildWriteFileGateFields(nodeSeq: Int, gate: WriteFileGate): SectionResult {
         val editableList = mutableListOf<JComponent>()
         val fileCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
-        fileCard.add(labeledRow("Path", buildTextField(gate.path, editableList) { v -> onGateUpdated(nodeSeq, gate.copy(path = v)) }))
-        fileCard.add(labeledRow("Content Key", buildTextField(gate.contentKey, editableList) { v -> onGateUpdated(nodeSeq, gate.copy(contentKey = v)) }))
+        fileCard.add(labeledRow("Path", buildTextField(gate.path, editableList) { v -> onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(path = v)) }))
+        fileCard.add(labeledRow("Content Key", buildTextField(gate.contentKey, editableList) { v -> onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(contentKey = v)) }))
         val modeCombo = JComboBox(arrayOf("overwrite", "append", "fail-if-exists")).apply {
             selectedItem = when (gate.mode) {
                 WriteMode.OVERWRITE -> "overwrite"
@@ -518,7 +532,7 @@ class GatePropertySections(
                     "fail-if-exists" -> WriteMode.FAIL_IF_EXISTS
                     else -> WriteMode.OVERWRITE
                 }
-                onGateUpdated(nodeSeq, gate.copy(mode = mode))
+                onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(mode = mode))
             }
         }
         editableList.add(modeCombo)

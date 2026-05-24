@@ -44,6 +44,7 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
                 showGate(freshNode, model, c)
             }
         },
+        getGate = { nodeSeq -> currentModel?.nodeBySeq(nodeSeq)?.gate },
     )
 
     init {

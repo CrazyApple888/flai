@@ -50,8 +50,12 @@ class PipelineDetailPanel(
 
     fun showPipeline(pipeline: UiPipeline) {
         currentPipeline = pipeline
+        val retained = service.getSavedInputValues(pipeline.id)
         inputValues.clear()
-        pipeline.inputSpecs.forEach { inputValues[it.key] = it.defaultValue }
+        pipeline.inputSpecs.forEach { spec ->
+            inputValues[spec.key] = retained[spec.key] ?: spec.defaultValue
+        }
+        service.saveInputValues(pipeline.id, inputValues.toMap())
         rebuildInputs(pipeline)
     }
 
@@ -105,7 +109,11 @@ class PipelineDetailPanel(
                     override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = update()
                     override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = update()
                     override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = update()
-                    private fun update() { inputValues[spec.key] = textField.text }
+                    private fun update() {
+                        inputValues[spec.key] = textField.text
+                        val p = currentPipeline ?: return
+                        service.saveInputValues(p.id, inputValues.toMap())
+                    }
                 })
                 content.add(textField, gbc)
             }

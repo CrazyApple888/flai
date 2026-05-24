@@ -38,7 +38,7 @@ class DefaultLlmGateExecutorTest {
     private fun capturingLlmClient(response: String = "LLM response"): Pair<LlmClient, () -> String?> {
         var capturedPrompt: String? = null
         val client = object : LlmClient {
-            override suspend fun complete(config: me.drew.flai.domain.model.LlmEndpointConfig, prompt: String): String {
+            override suspend fun complete(config: me.drew.flai.domain.model.LlmEndpointConfig, prompt: String, apiKey: String?): String {
                 capturedPrompt = prompt
                 return response
             }
@@ -152,7 +152,7 @@ class DefaultLlmGateExecutorTest {
         val error = SkillLoadException("Skill file not found: /missing/skill.md")
         var llmCalled = false
         val client = object : LlmClient {
-            override suspend fun complete(config: me.drew.flai.domain.model.LlmEndpointConfig, prompt: String): String {
+            override suspend fun complete(config: me.drew.flai.domain.model.LlmEndpointConfig, prompt: String, apiKey: String?): String {
                 llmCalled = true
                 return "response"
             }
