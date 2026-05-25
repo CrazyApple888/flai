@@ -1,7 +1,7 @@
 # Pipeline YAML Specification
 
-Pipelines live in `<project root>/.flai/` and must be named `*.flai.yaml` (or `*.yaml`).
-The gutter run icon appears only on `*.flai.yaml` files.
+Pipelines live in `<project root>/.flai/` and must be named `*.flai.yaml`, `*.flai`, or `*.yaml`.
+The gutter run icon appears on `*.flai.yaml` and `*.flai` files.
 
 ## Top-level structure
 

@@ -8,7 +8,7 @@ import me.drew.flai.ui.actions.RunPipelineAction
 class FlaiRunLineMarkerContributor : RunLineMarkerContributor() {
     override fun getInfo(element: PsiElement): Info? {
         val file = element.containingFile ?: return null
-        if (!file.name.endsWith(".flai.yaml")) return null
+        if (!file.name.endsWith(".flai.yaml") && !file.name.endsWith(".flai")) return null
         // Only leaf elements (no children) and only the absolute first one
         if (element.firstChild != null) {
             return null

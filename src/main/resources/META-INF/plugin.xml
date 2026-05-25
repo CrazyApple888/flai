@@ -25,7 +25,7 @@
         <fileType
             name="Flai Pipeline"
             implementationClass="me.drew.flai.ui.editor.FlaiYamlFileType"
-            patterns="*.flai.yaml"
+            patterns="*.flai.yaml;*.flai"
             language="yaml"/>
 
         <runLineMarkerContributor

@@ -23,11 +23,12 @@ class YamlPipelineRepository(
 
     override suspend fun listAll(): List<PipelineId> = withContext(Dispatchers.IO) {
         pipelineDir
-            ?.listFiles { f -> f.name.endsWith(".flai.yaml") || f.name.endsWith(".yaml") }
+            ?.listFiles { f -> f.name.endsWith(".flai.yaml") || f.name.endsWith(".flai") || f.name.endsWith(".yaml") }
             ?.map { f ->
                 val name = f.name
                 PipelineId(when {
                     name.endsWith(".flai.yaml") -> name.dropLast(".flai.yaml".length)
+                    name.endsWith(".flai") -> name.dropLast(".flai".length)
                     name.endsWith(".yaml") -> name.dropLast(".yaml".length)
                     else -> f.nameWithoutExtension
                 })
@@ -54,6 +55,7 @@ class YamlPipelineRepository(
         return dir.listFiles()?.firstOrNull { f ->
             f.nameWithoutExtension == id.value ||
                 f.name == "${id.value}.flai.yaml" ||
+                f.name == "${id.value}.flai" ||
                 f.name == "${id.value}.yaml"
         }
     }

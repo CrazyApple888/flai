@@ -19,7 +19,7 @@ Built for engineers who want their AI workflows to live in the same repo as the 
 ## Why flai
 
 - **Pipelines as code.** YAML files in `.flai/`, checked into git. Reviewable in PRs, diffable, branchable.
-- **Native IDE integration.** Gutter run icon on `*.flai.yaml`, dedicated tool window, live execution log.
+- **Native IDE integration.** Gutter run icon on `*.flai.yaml` and `*.flai` files, dedicated tool window, live execution log.
 - **Bring your own model.** Anthropic and OpenAI response shapes supported out of the box. Endpoint and credentials per-gate.
 - **Tools that touch your code.** Built-in `ide.readFile`, `ide.searchSymbol`, `ide.runCommand`, plus first-class `bash`, `read-file`, and `write-file` gates.
 - **Skills, not megaprompts.** Compose reusable instruction files (`.flai/skills/*.md`) per LLM gate.
@@ -45,7 +45,7 @@ Full spec: [`docs/pipeline-yaml-spec.md`](docs/pipeline-yaml-spec.md).
 
 1. **Install** flai (see below).
 2. Create `.flai/` at your project root.
-3. Drop in a pipeline file, e.g. `.flai/code-review.flai.yaml`:
+3. Drop in a pipeline file, e.g. `.flai/code-review.flai.yaml` (or `.flai/code-review.flai`):
 
    ```yaml
    id: code-review
@@ -125,7 +125,7 @@ Adding a new gate type: sealed subclass in `Gate.kt` → `DefaultXxxGateExecutor
 
 ## Roadmap
 
-- [ ] **CLI tool** — run `.flai.yaml` pipelines from the terminal, outside the IDE. Same YAML, same gate types, no IntelliJ required. CI-friendly.
+- [ ] **CLI tool** — run `.flai.yaml` / `.flai` pipelines from the terminal, outside the IDE. Same YAML, same gate types, no IntelliJ required. CI-friendly.
 - [ ] **MCP server** — expose flai pipelines as MCP tools so any MCP-compatible host (Claude Desktop, other agents) can invoke them directly.
 - [ ] **HTTP gate** — make arbitrary HTTP requests (GET/POST/etc.) from a pipeline; response body and status stored in context.
 - [ ] **Vector/RAG gate** — embed text and query a vector store; inject retrieved chunks into context for downstream LLM gates.

@@ -20,7 +20,7 @@ class FlaiPipelineFileEditorProvider : FileEditorProvider, DumbAware {
     override fun getEditorTypeId(): String = "flai-visual-pipeline"
 
     override fun accept(project: Project, file: VirtualFile): Boolean =
-        file.name.endsWith(".flai.yaml")
+        file.name.endsWith(".flai.yaml") || file.name.endsWith(".flai")
 
     override fun createEditor(project: Project, file: VirtualFile): FileEditor {
         return try {
