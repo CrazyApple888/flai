@@ -123,6 +123,14 @@ Adding a new gate type: sealed subclass in `Gate.kt` → `DefaultXxxGateExecutor
 ./gradlew verifyPlugin   # check IDE compatibility
 ```
 
+## Roadmap
+
+- [ ] **CLI tool** — run `.flai.yaml` pipelines from the terminal, outside the IDE. Same YAML, same gate types, no IntelliJ required. CI-friendly.
+- [ ] **MCP server** — expose flai pipelines as MCP tools so any MCP-compatible host (Claude Desktop, other agents) can invoke them directly.
+- [ ] **HTTP gate** — make arbitrary HTTP requests (GET/POST/etc.) from a pipeline; response body and status stored in context.
+- [ ] **Vector/RAG gate** — embed text and query a vector store; inject retrieved chunks into context for downstream LLM gates.
+- [ ] **Parallel gate** — fan-out execution across multiple branches concurrently; collect results before continuing.
+
 ## Documentation
 
 - [Pipeline YAML specification](docs/pipeline-yaml-spec.md) — every gate, every field, every example.
