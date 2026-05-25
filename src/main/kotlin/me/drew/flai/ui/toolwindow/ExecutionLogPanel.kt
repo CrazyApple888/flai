@@ -75,7 +75,7 @@ class ExecutionLogPanel(
     }
 
     private fun showValuePopup(row: GateRow) {
-        val fullText = row.outputLabel ?: return
+        val fullText = row.outputValue ?: row.outputLabel ?: return
         val textArea = JBTextArea(fullText).apply {
             isEditable = false
             lineWrap = true

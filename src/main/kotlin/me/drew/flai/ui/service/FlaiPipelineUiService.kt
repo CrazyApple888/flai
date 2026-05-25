@@ -194,6 +194,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
                         gateName = k,
                         status = GateStatus.OUTPUT,
                         outputLabel = "$k = $v",
+                        outputValue = v?.toString(),
                     )
                 }
             }
