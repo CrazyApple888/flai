@@ -37,7 +37,9 @@ internal fun roundedWrapper(child: JComponent): JPanel {
             val r = radius.toFloat()
             val rr = RoundRectangle2D.Float(0f, 0f, (width - 1).toFloat(), (height - 1).toFloat(), r, r)
             val full = Rectangle2D.Float(0f, 0f, width.toFloat(), height.toFloat())
-            val corners = Area(full).also { it.subtract(Area(rr)) }
+            val corners = Area(full).also {
+                it.subtract(Area(rr))
+            }
             g2.color = UIManager.getColor("Panel.background") ?: Color(0x2B2B2B)
             g2.fill(corners)
             g2.color = JBColor(Color(0, 0, 0, 60), Color(255, 255, 255, 40))
@@ -65,12 +67,27 @@ internal fun iconButton(icon: Icon, tooltip: String, action: () -> Unit): JButto
             preferredSize = Dimension(JBUI.scale(22), JBUI.scale(22))
             toolTipText = tooltip
             cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-            addActionListener { action() }
+            addActionListener {
+                action()
+            }
             addMouseListener(object : MouseAdapter() {
-                override fun mouseEntered(e: MouseEvent) { hovered = true; repaint() }
-                override fun mouseExited(e: MouseEvent) { hovered = false; pressed = false; repaint() }
-                override fun mousePressed(e: MouseEvent) { pressed = true; repaint() }
-                override fun mouseReleased(e: MouseEvent) { pressed = false; repaint() }
+                override fun mouseEntered(e: MouseEvent) {
+                    hovered = true
+                    repaint()
+                }
+                override fun mouseExited(e: MouseEvent) {
+                    hovered = false
+                    pressed = false
+                    repaint()
+                }
+                override fun mousePressed(e: MouseEvent) {
+                    pressed = true
+                    repaint()
+                }
+                override fun mouseReleased(e: MouseEvent) {
+                    pressed = false
+                    repaint()
+                }
             })
         }
 

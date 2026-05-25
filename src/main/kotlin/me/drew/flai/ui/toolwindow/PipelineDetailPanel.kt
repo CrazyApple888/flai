@@ -65,7 +65,9 @@ class PipelineDetailPanel(
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
             add(Box.createVerticalGlue())
-            add(JLabel(AllIcons.FileTypes.Yaml).apply { alignmentX = CENTER_ALIGNMENT })
+            add(JLabel(AllIcons.FileTypes.Yaml).apply {
+                alignmentX = CENTER_ALIGNMENT
+            })
             add(Box.createVerticalStrut(JBUI.scale(8)))
             add(JBLabel("Select a pipeline to run").apply {
                 alignmentX = CENTER_ALIGNMENT
@@ -87,7 +89,10 @@ class PipelineDetailPanel(
         }
 
         // Pipeline header
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2; gbc.weightx = 1.0
+        gbc.gridx = 0
+        gbc.gridy = 0
+        gbc.gridwidth = 2
+        gbc.weightx = 1.0
         content.add(buildPipelineHeader(pipeline), gbc)
 
         // Inputs section header + fields
@@ -96,14 +101,18 @@ class PipelineDetailPanel(
             content.add(buildSectionLabel("INPUTS"), gbc)
 
             pipeline.inputSpecs.forEach { spec ->
-                gbc.gridy++; gbc.gridwidth = 1; gbc.gridx = 0; gbc.weightx = 0.0
+                gbc.gridy++
+                gbc.gridwidth = 1
+                gbc.gridx = 0
+                gbc.weightx = 0.0
                 content.add(JBLabel(spec.label + if (spec.required) " *" else "").apply {
                     preferredSize = Dimension(JBUI.scale(90), JBUI.scale(28))
                     font = font.deriveFont(Font.PLAIN, JBUI.scale(11).toFloat())
                     foreground = UIManager.getColor("Label.disabledForeground")
                 }, gbc)
 
-                gbc.gridx = 1; gbc.weightx = 1.0
+                gbc.gridx = 1
+                gbc.weightx = 1.0
                 val textField = JBTextField(inputValues[spec.key] ?: spec.defaultValue)
                 textField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
                     override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = update()
@@ -146,7 +155,10 @@ class PipelineDetailPanel(
             service.run(p, inputValues.toMap())
         }
 
-        gbc.gridy++; gbc.gridx = 0; gbc.gridwidth = 2; gbc.weightx = 1.0
+        gbc.gridy++
+        gbc.gridx = 0
+        gbc.gridwidth = 2
+        gbc.weightx = 1.0
         gbc.insets = Insets(JBUI.scale(8), JBUI.scale(8), JBUI.scale(4), JBUI.scale(8))
         content.add(runButton, gbc)
 
@@ -155,7 +167,9 @@ class PipelineDetailPanel(
         content.add(errorLabel, gbc)
 
         // Filler
-        gbc.gridy++; gbc.weighty = 1.0; gbc.insets = Insets(0, 0, 0, 0)
+        gbc.gridy++
+        gbc.weighty = 1.0
+        gbc.insets = Insets(0, 0, 0, 0)
         content.add(JPanel(), gbc)
 
         inputsContainer.removeAll()
@@ -179,7 +193,9 @@ class PipelineDetailPanel(
                     font = font.deriveFont(Font.BOLD, JBUI.scale(13).toFloat())
                 })
                 val meta = buildList {
-                    if (pipeline.description.isNotBlank()) add(pipeline.description)
+                    if (pipeline.description.isNotBlank()) {
+                        add(pipeline.description)
+                    }
                     add("${pipeline.gateCount} gates")
                 }.joinToString("  ·  ")
                 add(JBLabel(meta).apply {

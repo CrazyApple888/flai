@@ -236,7 +236,9 @@ class YamlPipelineSerializer {
             lower in yaml11Reserved ||
             value.toIntOrNull() != null ||
             value.toDoubleOrNull() != null
-        if (!needsQuoting) return value
+        if (!needsQuoting) {
+            return value
+        }
         return "'${value.replace("'", "''")}'"
     }
 

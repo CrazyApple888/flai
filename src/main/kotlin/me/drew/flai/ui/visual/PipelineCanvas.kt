@@ -31,7 +31,9 @@ interface PipelineCanvasListener {
 class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
 
     private var isEditable: Boolean = true
-    fun setEditable(value: Boolean) { isEditable = value }
+    fun setEditable(value: Boolean) {
+        isEditable = value
+    }
 
     private var _listener: PipelineCanvasListener? = null
     fun setListener(listener: PipelineCanvasListener) {
@@ -46,7 +48,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     }
 
     private var zoomLocked: Boolean = false
-    fun setZoomLocked(value: Boolean) { zoomLocked = value }
+    fun setZoomLocked(value: Boolean) {
+        zoomLocked = value
+    }
 
     private var selectedNodeSeq: Int = -1
     private var selectedEdge: VisualEdge? = null
@@ -78,7 +82,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     private val nodeHoverAlpha: MutableMap<Int, Float> = mutableMapOf()
     private val hoverTimer = Timer(60) {
         tickHoverAlpha()
-        if (isShowing) repaint()
+        if (isShowing) {
+            repaint()
+        }
     }
 
     // Animation (execution pulse)
@@ -250,7 +256,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                 if (newHovered != hoveredNodeSeq) {
                     hoveredNodeSeq = newHovered
                     if (newHovered != -1) {
-                        if (!hoverTimer.isRunning) hoverTimer.start()
+                        if (!hoverTimer.isRunning) {
+                        hoverTimer.start()
+                    }
                     }
                     repaint()
                 }
@@ -264,12 +272,18 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
             }
 
             override fun mouseWheelMoved(e: MouseWheelEvent) {
-                if (zoomLocked) return
+                if (zoomLocked) {
+                    return
+                }
                 val rotation = e.preciseWheelRotation
-                if (Math.abs(rotation) < 0.1) return
+                if (Math.abs(rotation) < 0.1) {
+                    return
+                }
                 val factor = if (rotation < 0) 1.1 else 1.0 / 1.1
                 val newZoom = (zoom * factor).coerceIn(MIN_ZOOM, MAX_ZOOM)
-                if (newZoom == zoom) return
+                if (newZoom == zoom) {
+                    return
+                }
                 val ratio = newZoom / zoom
                 zoom = newZoom
                 // Zoom around screen point — preConcatenate in reverse order so pivot = cursor
@@ -301,7 +315,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                     return
                 }
                 if (e.keyCode == KeyEvent.VK_DELETE || e.keyCode == KeyEvent.VK_BACK_SPACE) {
-                    if (!isEditable) return
+                    if (!isEditable) {
+                        return
+                    }
                     val edge = selectedEdge
                     if (edge != null) {
                         model.removeEdge(edge)
@@ -323,7 +339,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
 
         val undoAction = object : AnAction() {
             override fun actionPerformed(e: AnActionEvent) {
-                if (!isEditable) return
+                if (!isEditable) {
+                    return
+                }
                 if (model.undo()) {
                     selectedNodeSeq = -1
                     selectedEdge = null
@@ -340,12 +358,16 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         // TransferHandler to accept gate-type drops from palette
         transferHandler = object : TransferHandler() {
             override fun canImport(support: TransferSupport): Boolean {
-                if (!isEditable) return false
+                if (!isEditable) {
+                    return false
+                }
                 return support.isDataFlavorSupported(java.awt.datatransfer.DataFlavor.stringFlavor)
             }
 
             override fun importData(support: TransferSupport): Boolean {
-                if (!isEditable) return false
+                if (!isEditable) {
+                    return false
+                }
                 val gateType = try {
                     support.transferable.getTransferData(java.awt.datatransfer.DataFlavor.stringFlavor) as? String
                         ?: return false
@@ -474,7 +496,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         // Use screen-space step derived from model GRID_SIZE
         val modelGridSize = FlaiEditorTheme.GRID_SIZE.toDouble()
         val screenStep = (transform.scaleX * modelGridSize).coerceAtLeast(4.0)
-        if (screenStep < 4.0) return
+        if (screenStep < 4.0) {
+            return
+        }
 
         // Find model origin in screen space
         val originScreen = Point2D.Double(0.0, 0.0)
@@ -531,7 +555,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     private fun findInputPortAt(mx: Int, my: Int): Pair<Int, String>? {
         for (node in model.nodes) {
             val ports = node.gate.inputPorts()
-            if (ports.isEmpty()) continue
+            if (ports.isEmpty()) {
+                continue
+            }
             for ((i, portName) in ports.withIndex()) {
                 val cx = node.x
                 val cy = node.y + NODE_HEIGHT / 2 + i * (PORT_RADIUS * 2 + 2) - (ports.size - 1) * (PORT_RADIUS + 1)
@@ -565,7 +591,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
             val t = i.toDouble() / steps
             val bx = cubicBezier(t, x1, x1 + ctrlOffset, x2 - ctrlOffset, x2)
             val by = cubicBezier(t, y1, y1, y2, y2)
-            if (distToSegment(px, py, prevX, prevY, bx, by) < threshold) return true
+            if (distToSegment(px, py, prevX, prevY, bx, by) < threshold) {
+                return true
+            }
             prevX = bx
             prevY = by
         }
@@ -581,7 +609,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
         val dx = bx - ax
         val dy = by - ay
         val lenSq = dx * dx + dy * dy
-        if (lenSq == 0.0) return dist(px.toInt(), py.toInt(), ax.toInt(), ay.toInt())
+        if (lenSq == 0.0) {
+            return dist(px.toInt(), py.toInt(), ax.toInt(), ay.toInt())
+        }
         val t = ((px - ax) * dx + (py - ay) * dy) / lenSq
         val tc = t.coerceIn(0.0, 1.0)
         return Math.sqrt((px - (ax + tc * dx)).let { it * it } + (py - (ay + tc * dy)).let { it * it })
@@ -600,7 +630,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     }
 
     private fun handleRightClick(e: MouseEvent, mx: Int, my: Int) {
-        if (!isEditable) return
+        if (!isEditable) {
+            return
+        }
         val node = findNodeAt(mx, my) ?: return
         val popup = JPopupMenu()
         val deleteItem = JMenuItem("Delete")
@@ -627,9 +659,13 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     fun getViewTransform(): java.awt.geom.AffineTransform = AffineTransform(transform)
 
     fun zoomIn() {
-        if (zoomLocked) return
+        if (zoomLocked) {
+            return
+        }
         val newZoom = (zoom * 1.2).coerceIn(MIN_ZOOM, MAX_ZOOM)
-        if (newZoom == zoom) return
+        if (newZoom == zoom) {
+            return
+        }
         val ratio = newZoom / zoom
         zoom = newZoom
         val cx = width / 2.0
@@ -643,9 +679,13 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     }
 
     fun zoomOut() {
-        if (zoomLocked) return
+        if (zoomLocked) {
+            return
+        }
         val newZoom = (zoom / 1.2).coerceIn(MIN_ZOOM, MAX_ZOOM)
-        if (newZoom == zoom) return
+        if (newZoom == zoom) {
+            return
+        }
         val ratio = newZoom / zoom
         zoom = newZoom
         val cx = width / 2.0
@@ -680,7 +720,9 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
 
     private fun findLlmStarAt(mx: Int, my: Int): VisualNode? {
         for (node in model.nodes) {
-            if (node.gate !is LlmGate) continue
+            if (node.gate !is LlmGate) {
+                continue
+            }
             val cx = node.x + NODE_WIDTH - 10
             val cy = node.y + 10
             val r = 8 // hit radius slightly larger than visual radius 6

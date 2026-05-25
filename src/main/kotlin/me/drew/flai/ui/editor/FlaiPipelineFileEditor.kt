@@ -68,18 +68,39 @@ class FlaiPipelineFileEditor(
     private val minimapPanel: MinimapPanel
     private lateinit var mainSplit: OnePixelSplitter
 
-    private val applyBtn = JButton("Apply").apply { toolTipText = "Apply visual changes to YAML" }
-    private val autoLayoutBtn = JButton("Auto-layout").apply { toolTipText = "Auto-arrange nodes" }
-    private val fitBtn = JButton("Fit").apply { toolTipText = "Fit all nodes in view" }
-    private val runBtn = JButton("Run", FlaiIcons.GUTTER_RUN).apply { toolTipText = "Run this pipeline" }
-    private val cancelBtn = JButton("Cancel").apply { isVisible = false; toolTipText = "Cancel running pipeline" }
+    private val applyBtn = JButton("Apply").apply {
+        toolTipText = "Apply visual changes to YAML"
+    }
+    private val autoLayoutBtn = JButton("Auto-layout").apply {
+        toolTipText = "Auto-arrange nodes"
+    }
+    private val fitBtn = JButton("Fit").apply {
+        toolTipText = "Fit all nodes in view"
+    }
+    private val runBtn = JButton("Run", FlaiIcons.GUTTER_RUN).apply {
+        toolTipText = "Run this pipeline"
+    }
+    private val cancelBtn = JButton("Cancel").apply {
+        isVisible = false
+        toolTipText = "Cancel running pipeline"
+    }
 
-    private val zoomInBtn = JButton("+").apply { toolTipText = "Zoom in" }
-    private val zoomOutBtn = JButton("–").apply { toolTipText = "Zoom out" }
-    private val resetZoomBtn = JButton("1:1").apply { toolTipText = "Reset zoom" }
-    private val lockZoomBtn = JToggleButton("🔓").apply { toolTipText = "Lock zoom" }
+    private val zoomInBtn = JButton("+").apply {
+        toolTipText = "Zoom in"
+    }
+    private val zoomOutBtn = JButton("–").apply {
+        toolTipText = "Zoom out"
+    }
+    private val resetZoomBtn = JButton("1:1").apply {
+        toolTipText = "Reset zoom"
+    }
+    private val lockZoomBtn = JToggleButton("🔓").apply {
+        toolTipText = "Lock zoom"
+    }
 
-    private val errorBanner = JBLabel("").apply { isVisible = false }
+    private val errorBanner = JBLabel("").apply {
+        isVisible = false
+    }
     private val savedBanner = JBLabel("Saved").apply {
         isVisible = false
         foreground = JBColor(0x2E7D32, 0x66BB6A)
@@ -93,7 +114,9 @@ class FlaiPipelineFileEditor(
 
     private val docListener = object : DocumentListener {
         override fun documentChanged(event: DocumentEvent) {
-            if (applyInProgress) return
+            if (applyInProgress) {
+                return
+            }
             debounceJob?.cancel()
             debounceJob = editorScope.launch {
                 delay(300)
@@ -148,15 +171,27 @@ class FlaiPipelineFileEditor(
         // Toolbar
         val toolbar = JPanel(FlowLayout(FlowLayout.LEFT, 6, 4))
         toolbar.preferredSize = Dimension(Int.MAX_VALUE, 38)
-        applyBtn.addActionListener { onApply() }
-        autoLayoutBtn.addActionListener { onAutoLayout() }
-        fitBtn.addActionListener { canvas.resetTransform() }
-        runBtn.addActionListener { onRun() }
-        cancelBtn.addActionListener { service.cancelRun() }
+        applyBtn.addActionListener {
+            onApply()
+        }
+        autoLayoutBtn.addActionListener {
+            onAutoLayout()
+        }
+        fitBtn.addActionListener {
+            canvas.resetTransform()
+        }
+        runBtn.addActionListener {
+            onRun()
+        }
+        cancelBtn.addActionListener {
+            service.cancelRun()
+        }
         toolbar.add(applyBtn)
         toolbar.add(runBtn)
         toolbar.add(cancelBtn)
-        toolbar.add(JSeparator(JSeparator.VERTICAL).apply { preferredSize = Dimension(1, 24) })
+        toolbar.add(JSeparator(JSeparator.VERTICAL).apply {
+            preferredSize = Dimension(1, 24)
+        })
         toolbar.add(autoLayoutBtn)
         toolbar.add(fitBtn)
 
@@ -172,7 +207,9 @@ class FlaiPipelineFileEditor(
         topBar.add(JSeparator(JSeparator.HORIZONTAL), BorderLayout.SOUTH)
 
         val saveAction = object : AnAction() {
-            override fun actionPerformed(e: AnActionEvent) { onApply() }
+            override fun actionPerformed(e: AnActionEvent) {
+                onApply()
+            }
         }
         saveAction.registerCustomShortcutSet(
             ActionManager.getInstance().getAction("SaveAll").shortcutSet,
@@ -185,13 +222,23 @@ class FlaiPipelineFileEditor(
         canvasLayer.add(canvas, JLayeredPane.DEFAULT_LAYER)
 
         // Transparent overlay for zoom buttons and minimap
-        val overlay = JPanel(null).apply { isOpaque = false }
+        val overlay = JPanel(null).apply {
+            isOpaque = false
+        }
         canvasLayer.add(overlay, JLayeredPane.PALETTE_LAYER)
 
         // Wire up zoom control buttons
-        zoomInBtn.addActionListener { canvas.zoomIn() }
-        zoomOutBtn.addActionListener { canvas.zoomOut() }
-        resetZoomBtn.addActionListener { if (!lockZoomBtn.isSelected) { canvas.resetTransform() } }
+        zoomInBtn.addActionListener {
+            canvas.zoomIn()
+        }
+        zoomOutBtn.addActionListener {
+            canvas.zoomOut()
+        }
+        resetZoomBtn.addActionListener {
+            if (!lockZoomBtn.isSelected) {
+                canvas.resetTransform()
+            }
+        }
         lockZoomBtn.addActionListener {
             val locked = lockZoomBtn.isSelected
             canvas.setZoomLocked(locked)
@@ -288,7 +335,9 @@ class FlaiPipelineFileEditor(
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.WARNING_MESSAGE,
             )
-            if (choice != JOptionPane.OK_OPTION) return
+            if (choice != JOptionPane.OK_OPTION) {
+                return
+            }
             PropertiesComponent.getInstance().setValue(propsKey, true)
         }
 

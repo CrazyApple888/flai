@@ -17,7 +17,9 @@ object PipelineAutoLayout {
      * Grid spacing: NODE_W + H_GAP horizontally, NODE_H + V_GAP vertically.
      */
     fun compute(pipeline: Pipeline): AutoLayoutResult {
-        if (pipeline.gates.isEmpty()) return AutoLayoutResult(emptyMap())
+        if (pipeline.gates.isEmpty()) {
+            return AutoLayoutResult(emptyMap())
+        }
 
         // Build adjacency list
         val adj = mutableMapOf<GateId, MutableList<GateId>>()

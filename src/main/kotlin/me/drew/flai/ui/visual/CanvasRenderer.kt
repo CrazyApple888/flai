@@ -1,10 +1,14 @@
 package me.drew.flai.ui.visual
 
 import com.intellij.ui.JBColor
-import me.drew.flai.domain.model.*
+import me.drew.flai.domain.model.Gate
+import me.drew.flai.domain.model.LlmGate
+import me.drew.flai.domain.model.LogicGate
 import me.drew.flai.ui.model.GateStatus
 import java.awt.*
-import java.awt.geom.*
+import java.awt.geom.GeneralPath
+import java.awt.geom.Point2D
+import java.awt.geom.RoundRectangle2D
 import javax.swing.Icon
 
 data class CanvasRenderState(
@@ -39,7 +43,14 @@ internal class CanvasRenderer {
             if (node != null) {
                 val oldComposite = g2.composite
                 g2.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f)
-                val ghostShape = RoundRectangle2D.Float(state.ghostX.toFloat(), state.ghostY.toFloat(), NODE_WIDTH.toFloat(), NODE_HEIGHT.toFloat(), ARC.toFloat(), ARC.toFloat())
+                val ghostShape = RoundRectangle2D.Float(
+                    state.ghostX.toFloat(),
+                    state.ghostY.toFloat(),
+                    NODE_WIDTH.toFloat(),
+                    NODE_HEIGHT.toFloat(),
+                    ARC.toFloat(),
+                    ARC.toFloat()
+                )
                 g2.color = FlaiEditorTheme.accentFor(node.gate)
                 g2.fill(ghostShape)
                 g2.color = FlaiEditorTheme.SELECTION_OUTLINE
@@ -69,17 +80,38 @@ internal class CanvasRenderer {
         val isEntry = node.nodeSeq == model.entryNodeSeq
         val accent = FlaiEditorTheme.accentFor(node.gate)
 
-        val shape = RoundRectangle2D.Float(x.toFloat(), y.toFloat(), NODE_WIDTH.toFloat(), NODE_HEIGHT.toFloat(), ARC.toFloat(), ARC.toFloat())
+        val shape = RoundRectangle2D.Float(
+            x.toFloat(),
+            y.toFloat(),
+            NODE_WIDTH.toFloat(),
+            NODE_HEIGHT.toFloat(),
+            ARC.toFloat(),
+            ARC.toFloat()
+        )
 
         val shadowOffset = if (isHovered) 5 else 3
         g2.color = FlaiEditorTheme.NODE_SHADOW
-        val shadowShape = RoundRectangle2D.Float((x + shadowOffset).toFloat(), (y + shadowOffset).toFloat(), NODE_WIDTH.toFloat(), NODE_HEIGHT.toFloat(), ARC.toFloat(), ARC.toFloat())
+        val shadowShape = RoundRectangle2D.Float(
+            (x + shadowOffset).toFloat(),
+            (y + shadowOffset).toFloat(),
+            NODE_WIDTH.toFloat(),
+            NODE_HEIGHT.toFloat(),
+            ARC.toFloat(),
+            ARC.toFloat()
+        )
         g2.fill(shadowShape)
 
         if (isSelected) {
             g2.color = FlaiEditorTheme.NODE_SELECTED_GLOW
             val glowSize = 6f
-            val glowShape = RoundRectangle2D.Float(x - glowSize, y - glowSize, NODE_WIDTH + glowSize * 2, NODE_HEIGHT + glowSize * 2, ARC + glowSize, ARC + glowSize)
+            val glowShape = RoundRectangle2D.Float(
+                x - glowSize,
+                y - glowSize,
+                NODE_WIDTH + glowSize * 2,
+                NODE_HEIGHT + glowSize * 2,
+                ARC + glowSize,
+                ARC + glowSize
+            )
             g2.fill(glowShape)
         }
 
@@ -172,9 +204,21 @@ internal class CanvasRenderer {
         g2.fillPolygon(xPts, yPts, pts * 2)
     }
 
-    private fun drawPort(g2: Graphics2D, cx: Int, cy: Int, isOutput: Boolean, isNodeActive: Boolean = false, color: Color? = null, label: String? = null) {
+    private fun drawPort(
+        g2: Graphics2D,
+        cx: Int,
+        cy: Int,
+        isOutput: Boolean,
+        isNodeActive: Boolean = false,
+        color: Color? = null,
+        label: String? = null
+    ) {
         val r = PORT_RADIUS
-        val portColor = color ?: if (isOutput) FlaiEditorTheme.PORT_OUTPUT else FlaiEditorTheme.PORT_INPUT
+        val portColor = color ?: if (isOutput) {
+            FlaiEditorTheme.PORT_OUTPUT
+        } else {
+            FlaiEditorTheme.PORT_INPUT
+        }
         if (isNodeActive) {
             g2.color = Color(portColor.red, portColor.green, portColor.blue, 80)
             val glowR = r + 3
@@ -203,14 +247,17 @@ internal class CanvasRenderer {
                 g2.color = Color(50, 100, 220, alpha.coerceIn(0, 255))
                 g2.fillOval(cx - r, cy - r, r * 2, r * 2)
             }
+
             GateStatus.SUCCESS -> {
                 g2.color = Color(0, 180, 0)
                 g2.fillOval(cx - r, cy - r, r * 2, r * 2)
             }
+
             GateStatus.FAILURE -> {
                 g2.color = Color(220, 0, 0)
                 g2.fillOval(cx - r, cy - r, r * 2, r * 2)
             }
+
             GateStatus.OUTPUT -> {
                 g2.color = Color(180, 100, 0)
                 g2.fillOval(cx - r, cy - r, r * 2, r * 2)
@@ -225,16 +272,25 @@ internal class CanvasRenderer {
         val toPt = inputPortCenter(toNode, edge.toPort)
         val isSelected = edge == state.selectedEdge
         val isActive = isSelected ||
-            fromNode.nodeSeq == state.selectedNodeSeq || toNode.nodeSeq == state.selectedNodeSeq ||
-            fromNode.nodeSeq == state.hoveredNodeSeq || toNode.nodeSeq == state.hoveredNodeSeq
+                fromNode.nodeSeq == state.selectedNodeSeq || toNode.nodeSeq == state.selectedNodeSeq ||
+                fromNode.nodeSeq == state.hoveredNodeSeq || toNode.nodeSeq == state.hoveredNodeSeq
         val branchColor = logicBranchColor(fromNode.gate, edge.fromPort)
-        g2.stroke = BasicStroke(if (isSelected) 2.5f else 1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+        g2.stroke = BasicStroke(
+            if (isSelected) {
+                2.5f
+            } else {
+                1.5f
+            },
+            BasicStroke.CAP_ROUND,
+            BasicStroke.JOIN_ROUND
+        )
         g2.color = when {
             isSelected -> JBColor(Color(0, 100, 220), Color(100, 160, 255))
             branchColor != null -> {
                 val alpha = if (isActive) 220 else 160
                 Color(branchColor.red, branchColor.green, branchColor.blue, alpha)
             }
+
             isActive -> JBColor(Color(110, 130, 200), Color(160, 180, 240))
             else -> JBColor(Color(80, 80, 80), Color(150, 150, 150))
         }
@@ -270,13 +326,17 @@ internal class CanvasRenderer {
     }
 
     private fun logicBranchColor(gate: Gate, portName: String): Color? {
-        if (gate !is LogicGate) return null
+        if (gate !is LogicGate) {
+            return null
+        }
         val branchIndex = gate.branches.indexOfFirst { it.port == portName }
         return if (branchIndex >= 0) FlaiEditorTheme.branchColor(branchIndex) else FlaiEditorTheme.BRANCH_DEFAULT_COLOR
     }
 
     private fun logicPortLabel(gate: Gate, portName: String): String? {
-        if (gate !is LogicGate) return null
+        if (gate !is LogicGate) {
+            return null
+        }
         val branchIndex = gate.branches.indexOfFirst { it.port == portName }
         return if (branchIndex >= 0) "${branchIndex + 1}" else "D"
     }

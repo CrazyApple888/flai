@@ -38,9 +38,13 @@ class ExecutionLogPanel(
         layoutOrientation = JList.VERTICAL
         addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
-                if (e.clickCount != 2) return
+                if (e.clickCount != 2) {
+                    return
+                }
                 val index = locationToIndex(e.point)
-                if (index < 0) return
+                if (index < 0) {
+                    return
+                }
                 val row = rowModel.getElementAt(index)
                 if (row.status == GateStatus.OUTPUT) {
                     showValuePopup(row)
@@ -68,7 +72,9 @@ class ExecutionLogPanel(
             service.logRows.onEach { rows ->
                 withContext(Dispatchers.Main) {
                     rowModel.replaceAll(rows)
-                    if (rows.isNotEmpty()) logList.ensureIndexIsVisible(rows.size - 1)
+                    if (rows.isNotEmpty()) {
+                        logList.ensureIndexIsVisible(rows.size - 1)
+                    }
                 }
             }.collect {}
         }

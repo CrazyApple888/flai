@@ -28,7 +28,9 @@ class FileReadTool(private val project: Project) : Tool {
 
     private fun resolveFile(path: String): File? {
         val f = File(path)
-        if (f.isAbsolute) return f
+        if (f.isAbsolute) {
+            return f
+        }
         val base = project.basePath ?: return f
         return File(base, path)
     }

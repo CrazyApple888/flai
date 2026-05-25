@@ -118,7 +118,9 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
     }
 
     fun run(pipeline: UiPipeline, inputs: Map<String, String>) {
-        if (_executionState.value is ExecutionUiState.Running) return
+        if (_executionState.value is ExecutionUiState.Running) {
+            return
+        }
         _selectedPipeline.value = pipeline
         _logRows.value = emptyList()
         _executionState.value = ExecutionUiState.Running
@@ -211,7 +213,9 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
 
     private suspend fun loadAllWithPaths(): List<UiPipeline> = withContext(Dispatchers.IO) {
         val dir = project.basePath?.let { File(it, ".flai") } ?: return@withContext emptyList()
-        if (!dir.exists()) return@withContext emptyList()
+        if (!dir.exists()) {
+            return@withContext emptyList()
+        }
         val files = dir.listFiles { f -> f.isFile && (f.name.endsWith(".flai.yaml") || f.name.endsWith(".yaml")) }
             ?: return@withContext emptyList()
         LOG.info("Flai: found ${files.size} pipeline file(s) in ${dir.absolutePath}")

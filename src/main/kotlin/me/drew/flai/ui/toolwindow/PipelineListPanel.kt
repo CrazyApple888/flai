@@ -80,7 +80,9 @@ class PipelineListPanel(
         scope.launch {
             service.selectedPipeline.onEach { selected ->
                 withContext(Dispatchers.Main) {
-                    if (selected == null) return@withContext
+                    if (selected == null) {
+                        return@withContext
+                    }
                     val idx = listModel.items.indexOfFirst { it.id == selected.id }
                     if (idx >= 0 && jbList.selectedIndex != idx) {
                         suppressSelectionEvent = true

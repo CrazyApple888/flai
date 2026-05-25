@@ -18,7 +18,9 @@ import javax.swing.event.DocumentListener
 private val GATE_TYPES = listOf("input", "output", "llm", "logic", "tool", "bash", "read-file", "write-file")
 
 fun filterGateTypes(query: String, types: List<String>): List<String> {
-    if (query.isEmpty()) return types
+    if (query.isEmpty()) {
+        return types
+    }
     val lower = query.lowercase()
     return types.filter { it.lowercase().contains(lower) }
 }
@@ -39,7 +41,9 @@ class GatePalettePanel(
 
     private var onCollapseToggled: ((Boolean) -> Unit) = {}
 
-    fun setOnCollapseToggled(fn: (Boolean) -> Unit) { onCollapseToggled = fn }
+    fun setOnCollapseToggled(fn: (Boolean) -> Unit) {
+        onCollapseToggled = fn
+    }
 
     private var _isCollapsed: Boolean = PropertiesComponent.getInstance(project).getBoolean(persistKey(), false)
 
@@ -210,7 +214,9 @@ class GatePalettePanel(
 
             addMouseMotionListener(object : java.awt.event.MouseMotionAdapter() {
                 override fun mouseDragged(e: MouseEvent) {
-                    if (!isEditable) return
+                    if (!isEditable) {
+                        return
+                    }
                     val handler = (e.source as? JComponent)?.transferHandler ?: return
                     handler.exportAsDrag(e.source as JComponent, e, TransferHandler.COPY)
                 }

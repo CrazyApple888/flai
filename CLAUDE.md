@@ -70,7 +70,8 @@ Docs live in `docs/`. After any task that adds or changes features, gates, tools
 
 ## Code style
 
-- Always use braces for `if`/`else`/`for`/`while` bodies, even single-line
+- Always use braces for `if`/`else`/`for`/`while` bodies, even single-line; every statement inside braces must be on its own line
+- Never use semicolons (`;`) to separate statements — use newlines instead
 - No unused imports, fields, or functions — remove dead code immediately
 - Catch `CancellationException` before `Exception` in `suspend` functions and rethrow it; never swallow it
 - Use `?: throw IllegalStateException(...)` instead of `!!` for nullable platform values (e.g. `project.basePath`)

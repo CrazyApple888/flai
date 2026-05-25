@@ -69,10 +69,16 @@ class VisualPipelineModel {
 
     /** Returns false if newId is empty or already used by another gate. */
     fun renameGateId(seq: Int, newId: String): Boolean {
-        if (newId.isEmpty()) return false
-        if (_nodes.any { it.nodeSeq != seq && it.gateId == newId }) return false
+        if (newId.isEmpty()) {
+            return false
+        }
+        if (_nodes.any { it.nodeSeq != seq && it.gateId == newId }) {
+            return false
+        }
         val idx = _nodes.indexOfFirst { it.nodeSeq == seq }
-        if (idx < 0) return false
+        if (idx < 0) {
+            return false
+        }
         val node = _nodes[idx]
         val rebuiltGate = rebuildGateWithId(node.gate, GateId(newId))
         _nodes[idx] = node.copy(gateId = newId, gate = rebuiltGate)
@@ -88,7 +94,9 @@ class VisualPipelineModel {
                 it.toSeq == edge.toSeq &&
                 it.toPort == edge.toPort
         }
-        if (duplicate) return false
+        if (duplicate) {
+            return false
+        }
         _edges.add(edge)
         undoStack.addLast(UndoableEdit.EdgeAdded(edge))
         isDirty = true
@@ -145,14 +153,18 @@ class VisualPipelineModel {
 
     fun moveNode(seq: Int, x: Int, y: Int) {
         val idx = _nodes.indexOfFirst { it.nodeSeq == seq }
-        if (idx < 0) return
+        if (idx < 0) {
+            return
+        }
         _nodes[idx] = _nodes[idx].copy(x = x, y = y)
         isDirty = true
     }
 
     fun updateGate(seq: Int, gate: Gate) {
         val idx = _nodes.indexOfFirst { it.nodeSeq == seq }
-        if (idx < 0) return
+        if (idx < 0) {
+            return
+        }
         _nodes[idx] = _nodes[idx].copy(gate = gate, gateId = gate.id.value)
         isDirty = true
     }

@@ -7,8 +7,12 @@ class ExecutionContext(initialInputs: Map<String, Any?> = emptyMap()) {
     val trace: MutableList<TraceEntry> = mutableListOf()
 
     fun get(key: String): Any? = variables[key]
-    fun set(key: String, value: Any?) { variables[key] = value }
-    fun setAll(map: Map<String, Any?>) { variables.putAll(map) }
+    fun set(key: String, value: Any?) {
+        variables[key] = value
+    }
+    fun setAll(map: Map<String, Any?>) {
+        variables.putAll(map)
+    }
     fun snapshot(): Map<String, Any?> = HashMap(variables)
 
     fun resolve(mapping: Map<String, String>): Map<String, Any?> =

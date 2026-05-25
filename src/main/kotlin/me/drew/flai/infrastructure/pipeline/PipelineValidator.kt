@@ -43,8 +43,10 @@ class PipelineValidator {
             val node = queue.removeFirst()
             visited++
             pipeline.edges.filter { it.from == node }.forEach { edge ->
-                inDegree[edge.to] = inDegree[edge.to]!! - 1
-                if (inDegree[edge.to] == 0) queue.add(edge.to)
+                inDegree[edge.to] = (inDegree[edge.to] ?: throw IllegalStateException("Gate ${edge.to.value} not in inDegree map")) - 1
+                if (inDegree[edge.to] == 0) {
+                    queue.add(edge.to)
+                }
             }
         }
 

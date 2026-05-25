@@ -11,7 +11,9 @@ class LayoutStore(private val sidecarFile: File) {
     /** Returns stored positions; missing gates get null (caller uses auto-layout). */
     @Suppress("UNCHECKED_CAST")
     fun load(): Map<String, GatePosition> {
-        if (!sidecarFile.exists()) return emptyMap()
+        if (!sidecarFile.exists()) {
+            return emptyMap()
+        }
         return try {
             val content = sidecarFile.readText()
             val root = yaml.load<Map<String, Any>>(content) ?: return emptyMap()

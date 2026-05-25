@@ -51,7 +51,9 @@ class YamlPipelineRepository(
     override fun watchAll(): Flow<Pipeline> = emptyFlow()
 
     private fun findFile(dir: File, id: PipelineId): File? {
-        if (!dir.exists()) return null
+        if (!dir.exists()) {
+            return null
+        }
         return dir.listFiles()?.firstOrNull { f ->
             f.nameWithoutExtension == id.value ||
                 f.name == "${id.value}.flai.yaml" ||

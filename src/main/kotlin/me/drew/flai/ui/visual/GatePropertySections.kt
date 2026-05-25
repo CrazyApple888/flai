@@ -34,7 +34,9 @@ class GatePropertySections(
 
     fun buildBasicInfoFields(nodeSeq: Int, node: VisualNode, model: VisualPipelineModel): SectionResult {
         val editableList = mutableListOf<JComponent>()
-        val basicCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        val basicCard = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
         basicCard.add(labeledRow("ID", buildTextField(node.gateId, editableList) { newId ->
             model.renameGateId(nodeSeq, newId)
             onRepaint()
@@ -61,7 +63,9 @@ class GatePropertySections(
         tableModel.addTableModelListener {
             val fields = (0 until tableModel.rowCount).mapNotNull { r ->
                 val name = tableModel.getValueAt(r, 0) as? String ?: return@mapNotNull null
-                if (name.isEmpty()) return@mapNotNull null
+                if (name.isEmpty()) {
+                    return@mapNotNull null
+                }
                 val typeName = tableModel.getValueAt(r, 1) as? String ?: "STRING"
                 val type = runCatching { FieldType.valueOf(typeName.uppercase()) }.getOrDefault(FieldType.STRING)
                 val required = tableModel.getValueAt(r, 2) as? Boolean ?: true
@@ -83,16 +87,23 @@ class GatePropertySections(
 
         val addBtn = JButton("Add Field").apply {
             alignmentX = JComponent.LEFT_ALIGNMENT
-            addActionListener { tableModel.addRow(arrayOf("field", "STRING", true, "")) }
+            addActionListener {
+                tableModel.addRow(arrayOf("field", "STRING", true, ""))
+            }
         }
         val removeBtn = JButton("Remove Selected").apply {
             alignmentX = JComponent.LEFT_ALIGNMENT
-            addActionListener { if (table.selectedRow >= 0) tableModel.removeRow(table.selectedRow) }
+            addActionListener {
+                if (table.selectedRow >= 0) {
+                    tableModel.removeRow(table.selectedRow)
+                }
+            }
         }
         editableList.add(addBtn)
         editableList.add(removeBtn)
         val btnRow = JPanel(FlowLayout(FlowLayout.LEFT, 2, 2)).apply {
-            add(addBtn); add(removeBtn)
+            add(addBtn)
+            add(removeBtn)
         }
 
         val schemaContent = JPanel().apply {
@@ -111,7 +122,8 @@ class GatePropertySections(
         var firstFocus: JComponent? = null
 
         val promptArea = JTextArea(gate.promptTemplate, 6, 20).apply {
-            lineWrap = true; wrapStyleWord = true
+            lineWrap = true
+            wrapStyleWord = true
             val origBorder = border
             addFocusListener(object : java.awt.event.FocusAdapter() {
                 override fun focusGained(e: java.awt.event.FocusEvent) {
@@ -125,7 +137,9 @@ class GatePropertySections(
                 override fun insertUpdate(e: javax.swing.event.DocumentEvent) = fire()
                 override fun removeUpdate(e: javax.swing.event.DocumentEvent) = fire()
                 override fun changedUpdate(e: javax.swing.event.DocumentEvent) = fire()
-                fun fire() { onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(promptTemplate = text)) }
+                fun fire() {
+                    onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(promptTemplate = text))
+                }
             })
         }
         firstFocus = promptArea
@@ -140,7 +154,9 @@ class GatePropertySections(
         }
         val promptCard = cardPanel("Prompt Template", promptContent)
 
-        val endpointContent = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        val endpointContent = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
         endpointContent.add(labeledRow("URL", buildTextField(gate.endpointConfig.url, editableList) { v ->
             val g = freshGate(nodeSeq, gate)
             onGateUpdated(nodeSeq, g.copy(endpointConfig = g.endpointConfig.copy(url = v)))
@@ -178,7 +194,9 @@ class GatePropertySections(
     private fun buildSkillsCard(nodeSeq: Int, gate: LlmGate, editableList: MutableList<JComponent>): JPanel {
         val listModel = DefaultListModel<String>()
         gate.skills.forEach { listModel.addElement(it) }
-        val list = JList(listModel).apply { visibleRowCount = 3 }
+        val list = JList(listModel).apply {
+            visibleRowCount = 3
+        }
         editableList.add(list)
 
         fun syncSkills() {
@@ -189,19 +207,31 @@ class GatePropertySections(
         val addBtn = JButton("Add").apply {
             addActionListener {
                 val input = JOptionPane.showInputDialog(null, "Skill file path:")
-                if (!input.isNullOrEmpty()) { listModel.addElement(input); syncSkills() }
+                if (!input.isNullOrEmpty()) {
+                    listModel.addElement(input)
+                    syncSkills()
+                }
             }
         }
         val removeBtn = JButton("Remove").apply {
             addActionListener {
-                if (list.selectedIndex >= 0) { listModel.remove(list.selectedIndex); syncSkills() }
+                if (list.selectedIndex >= 0) {
+                    listModel.remove(list.selectedIndex)
+                    syncSkills()
+                }
             }
         }
-        editableList.add(addBtn); editableList.add(removeBtn)
+        editableList.add(addBtn)
+        editableList.add(removeBtn)
         val skillsContent = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(JScrollPane(list).apply { maximumSize = Dimension(Int.MAX_VALUE, 70) })
-            add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 2)).apply { add(addBtn); add(removeBtn) })
+            add(JScrollPane(list).apply {
+                maximumSize = Dimension(Int.MAX_VALUE, 70)
+            })
+            add(JPanel(FlowLayout(FlowLayout.LEFT, 2, 2)).apply {
+                add(addBtn)
+                add(removeBtn)
+            })
         }
         return cardPanel("Skills", skillsContent)
     }
@@ -251,11 +281,15 @@ class GatePropertySections(
             }, BorderLayout.CENTER)
             maximumSize = Dimension(Int.MAX_VALUE, 32)
         }
-        val settingsContent = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        val settingsContent = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
         settingsContent.add(defaultPortRow)
         val settingsCard = cardPanel("Logic Settings", settingsContent)
 
-        val branchesHolder = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        val branchesHolder = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
         val branchesCard = cardPanel("Branches", branchesHolder)
 
         fun rebuildBranches(branches: List<Branch>) {
@@ -268,14 +302,22 @@ class GatePropertySections(
                     border = titledBorder
                 }
                 val gbc = GridBagConstraints().apply {
-                    insets = Insets(2, 2, 2, 2); fill = GridBagConstraints.HORIZONTAL; weightx = 1.0
+                    insets = Insets(2, 2, 2, 2)
+                    fill = GridBagConstraints.HORIZONTAL
+                    weightx = 1.0
                 }
 
                 gbc.gridy = 0
-                branchPanel.add(JLabel("Port"), gbc.apply { gridx = 0; weightx = 0.3 })
+                branchPanel.add(JLabel("Port"), gbc.apply {
+                    gridx = 0
+                    weightx = 0.3
+                })
                 val portField = JTextField(branch.port, 8)
                 editableList.add(portField)
-                branchPanel.add(portField, gbc.apply { gridx = 1; weightx = 0.7 })
+                branchPanel.add(portField, gbc.apply {
+                    gridx = 1
+                    weightx = 0.7
+                })
 
                 val condTypes = arrayOf("always", "comparison", "switch")
                 val condTypeCombo = JComboBox(condTypes).apply {
@@ -287,13 +329,24 @@ class GatePropertySections(
                 }
                 editableList.add(condTypeCombo)
                 gbc.gridy = 1
-                branchPanel.add(JLabel("Condition"), gbc.apply { gridx = 0; weightx = 0.3 })
-                branchPanel.add(condTypeCombo, gbc.apply { gridx = 1; weightx = 0.7 })
+                branchPanel.add(JLabel("Condition"), gbc.apply {
+                    gridx = 0
+                    weightx = 0.3
+                })
+                branchPanel.add(condTypeCombo, gbc.apply {
+                    gridx = 1
+                    weightx = 0.7
+                })
 
-                val condDetailPanel = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+                val condDetailPanel = JPanel().apply {
+                    layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                }
                 branchPanel.add(condDetailPanel, GridBagConstraints().apply {
-                    gridy = 2; gridx = 0; gridwidth = 2
-                    fill = GridBagConstraints.HORIZONTAL; weightx = 1.0
+                    gridy = 2
+                    gridx = 0
+                    gridwidth = 2
+                    fill = GridBagConstraints.HORIZONTAL
+                    weightx = 1.0
                     insets = Insets(2, 2, 2, 2)
                 })
 
@@ -320,7 +373,8 @@ class GatePropertySections(
                             condDetailPanel.add(labeledRow("Values (csv)", valuesField))
                         }
                     }
-                    condDetailPanel.revalidate(); condDetailPanel.repaint()
+                    condDetailPanel.revalidate()
+                    condDetailPanel.repaint()
                 }
                 buildCondDetail(branch.condition)
 
@@ -345,7 +399,7 @@ class GatePropertySections(
                     }
                     val fresh = freshGate(nodeSeq, gate)
                     val updatedBranches = fresh.branches.toMutableList()
-                    if (i < updatedBranches.size) updatedBranches[i] = Branch(port, cond)
+                    if (i < updatedBranches.size) { updatedBranches[i] = Branch(port, cond) }
                     onGateUpdated(nodeSeq, fresh.copy(branches = updatedBranches))
                 }
 
@@ -377,7 +431,10 @@ class GatePropertySections(
                 }
                 editableList.add(deleteBtn)
                 branchPanel.add(deleteBtn, GridBagConstraints().apply {
-                    gridy = 3; gridx = 0; gridwidth = 2; anchor = GridBagConstraints.WEST
+                    gridy = 3
+                    gridx = 0
+                    gridwidth = 2
+                    anchor = GridBagConstraints.WEST
                     insets = Insets(2, 2, 2, 2)
                 })
 
@@ -396,7 +453,8 @@ class GatePropertySections(
             }
             editableList.add(addBranchBtn)
             branchesHolder.add(addBranchBtn)
-            branchesHolder.revalidate(); branchesHolder.repaint()
+            branchesHolder.revalidate()
+            branchesHolder.repaint()
         }
 
         rebuildBranches(gate.branches)
@@ -409,7 +467,9 @@ class GatePropertySections(
 
     fun buildToolGateFields(nodeSeq: Int, gate: ToolGate): SectionResult {
         val editableList = mutableListOf<JComponent>()
-        val toolContent = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        val toolContent = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
         val toolNames = toolRegistry.listNames()
         if (toolNames.isNotEmpty()) {
             val combo = JComboBox(toolNames.toTypedArray()).apply {
@@ -472,7 +532,9 @@ class GatePropertySections(
             },
         )
 
-        val settingsCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        val settingsCard = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
         settingsCard.add(labeledRow("Working Dir", buildTextField(gate.workingDirectory, editableList) { v ->
             onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(workingDirectory = v))
         }))
@@ -506,7 +568,9 @@ class GatePropertySections(
 
     fun buildReadFileGateFields(nodeSeq: Int, gate: ReadFileGate): SectionResult {
         val editableList = mutableListOf<JComponent>()
-        val fileCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        val fileCard = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
         fileCard.add(labeledRow("Path", buildTextField(gate.path, editableList) { v -> onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(path = v)) }))
         fileCard.add(labeledRow("Output Key", buildTextField(gate.outputKey, editableList) { v -> onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(outputKey = v)) }))
         return SectionResult(
@@ -517,7 +581,9 @@ class GatePropertySections(
 
     fun buildWriteFileGateFields(nodeSeq: Int, gate: WriteFileGate): SectionResult {
         val editableList = mutableListOf<JComponent>()
-        val fileCard = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+        val fileCard = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
         fileCard.add(labeledRow("Path", buildTextField(gate.path, editableList) { v -> onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(path = v)) }))
         fileCard.add(labeledRow("Content Key", buildTextField(gate.contentKey, editableList) { v -> onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(contentKey = v)) }))
         val modeCombo = JComboBox(arrayOf("overwrite", "append", "fail-if-exists")).apply {
@@ -561,7 +627,7 @@ class GatePropertySections(
             val updated = rows.mapNotNull { row ->
                 val k = row[0]
                 val v = row[1]
-                if (k.isEmpty()) null else k to v
+                if (k.isEmpty()) { null } else { k to v }
             }.toMap()
             onUpdate(updated)
         }
@@ -592,14 +658,32 @@ class GatePropertySections(
                     editableList.addAll(listOf(fromField, toField, trashBtn))
 
                     fromField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
-                        override fun insertUpdate(e: javax.swing.event.DocumentEvent) { rows[i][0] = fromField.text; syncMap() }
-                        override fun removeUpdate(e: javax.swing.event.DocumentEvent) { rows[i][0] = fromField.text; syncMap() }
-                        override fun changedUpdate(e: javax.swing.event.DocumentEvent) { rows[i][0] = fromField.text; syncMap() }
+                        override fun insertUpdate(e: javax.swing.event.DocumentEvent) {
+                            rows[i][0] = fromField.text
+                            syncMap()
+                        }
+                        override fun removeUpdate(e: javax.swing.event.DocumentEvent) {
+                            rows[i][0] = fromField.text
+                            syncMap()
+                        }
+                        override fun changedUpdate(e: javax.swing.event.DocumentEvent) {
+                            rows[i][0] = fromField.text
+                            syncMap()
+                        }
                     })
                     toField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
-                        override fun insertUpdate(e: javax.swing.event.DocumentEvent) { rows[i][1] = toField.text; syncMap() }
-                        override fun removeUpdate(e: javax.swing.event.DocumentEvent) { rows[i][1] = toField.text; syncMap() }
-                        override fun changedUpdate(e: javax.swing.event.DocumentEvent) { rows[i][1] = toField.text; syncMap() }
+                        override fun insertUpdate(e: javax.swing.event.DocumentEvent) {
+                            rows[i][1] = toField.text
+                            syncMap()
+                        }
+                        override fun removeUpdate(e: javax.swing.event.DocumentEvent) {
+                            rows[i][1] = toField.text
+                            syncMap()
+                        }
+                        override fun changedUpdate(e: javax.swing.event.DocumentEvent) {
+                            rows[i][1] = toField.text
+                            syncMap()
+                        }
                     })
                     trashBtn.addActionListener {
                         rows.removeAt(i)
@@ -714,7 +798,7 @@ class GatePropertySections(
                 alignmentX = LEFT_ALIGNMENT
                 isOpaque = false
                 border = JBUI.Borders.empty(4, 0, 0, 0)
-                for (c in contents) add(c)
+                for (c in contents) { add(c) }
             }
             add(contentWrapper)
         }
