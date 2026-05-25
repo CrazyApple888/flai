@@ -16,6 +16,30 @@ Built for engineers who want their AI workflows to live in the same repo as the 
 
 ---
 
+## Screenshots
+
+<div align="center">
+  <img src="docs/screenshots/pipeline_editor.png" alt="Visual pipeline editor" width="100%" /><br/>
+  <sub><b>Visual editor</b> — drag-and-drop pipeline graph with per-gate config panel</sub>
+</div>
+
+<br/>
+
+<table>
+  <tr>
+    <td align="center" width="45%">
+      <img src="docs/screenshots/pipeline_runner.png" alt="Pipeline runner tool window" /><br/>
+      <sub><b>Tool window</b> — pick a pipeline, fill inputs, watch the execution log</sub>
+    </td>
+    <td align="center" width="55%">
+      <img src="docs/screenshots/pipeline_output.png" alt="LLM output" /><br/>
+      <sub><b>Output</b> — LLM response surfaced directly in the IDE</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Why flai
 
 - **Pipelines as code.** YAML files in `.flai/`, checked into git. Reviewable in PRs, diffable, branchable.
