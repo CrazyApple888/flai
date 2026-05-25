@@ -9,6 +9,7 @@ import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.onEach
@@ -20,6 +21,8 @@ import me.drew.flai.ui.service.FlaiPipelineUiService
 import me.drew.flai.ui.util.coroutineScope
 import java.awt.BorderLayout
 import java.awt.Font
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import javax.swing.*
 
 class ExecutionLogPanel(
@@ -33,6 +36,17 @@ class ExecutionLogPanel(
     private val logList = JBList(rowModel).apply {
         cellRenderer = GateRowRenderer()
         layoutOrientation = JList.VERTICAL
+        addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) {
+                if (e.clickCount != 2) return
+                val index = locationToIndex(e.point)
+                if (index < 0) return
+                val row = rowModel.getElementAt(index)
+                if (row.status == GateStatus.OUTPUT) {
+                    showValuePopup(row)
+                }
+            }
+        })
     }
 
     init {
@@ -58,6 +72,27 @@ class ExecutionLogPanel(
                 }
             }.collect {}
         }
+    }
+
+    private fun showValuePopup(row: GateRow) {
+        val fullText = row.outputLabel ?: return
+        val textArea = JBTextArea(fullText).apply {
+            isEditable = false
+            lineWrap = true
+            wrapStyleWord = true
+            font = Font(Font.MONOSPACED, Font.PLAIN, JBUI.scaleFontSize(12f))
+            border = JBUI.Borders.empty(8)
+        }
+        val scroll = JBScrollPane(textArea)
+        val parentWindow = SwingUtilities.getWindowAncestor(this)
+        val dialog = JDialog(parentWindow, row.gateName, java.awt.Dialog.ModalityType.APPLICATION_MODAL).apply {
+            defaultCloseOperation = JDialog.DISPOSE_ON_CLOSE
+            isResizable = true
+            contentPane.add(scroll, BorderLayout.CENTER)
+            setSize(JBUI.scale(600), JBUI.scale(300))
+            setLocationRelativeTo(parentWindow)
+        }
+        dialog.isVisible = true
     }
 
     private class GateRowRenderer : ColoredListCellRenderer<GateRow>() {
