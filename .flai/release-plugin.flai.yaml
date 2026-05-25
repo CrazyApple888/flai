@@ -1,0 +1,75 @@
+id: release-plugin
+name: Build & Attach Plugin ZIP to Release
+description: Builds the plugin distribution ZIP and uploads it to an existing GitHub release.
+entry: start
+
+gates:
+  start:
+    type: input
+    label: Release Info
+    schema:
+      - name: releaseTag
+        type: STRING
+        required: true
+        default: "v0.1.0"
+      - name: githubToken
+        type: STRING
+        required: true
+
+  build:
+    type: bash
+    label: Build Plugin ZIP
+    command: "./gradlew buildPlugin"
+    timeoutSeconds: 300
+    outputMapping:
+      stdout: buildOutput
+      success: buildSuccess
+
+  get_upload_url:
+    type: bash
+    label: Get Release Upload URL
+    command: >-
+      curl -sf
+      -H "Authorization: token $GH_TOKEN"
+      "https://api.github.com/repos/aisachenko/flai/releases/tags/{{releaseTag}}"
+      | grep -o '"upload_url":"[^"]*"'
+      | cut -d'"' -f4
+      | cut -d'{' -f1
+      | tr -d '[:space:]'
+    environment:
+      GH_TOKEN: "{{githubToken}}"
+    outputMapping:
+      stdout: uploadUrl
+
+  upload_zip:
+    type: bash
+    label: Upload ZIP to Release
+    command: >-
+      ZIP=$(find build/distributions -name "*.zip" | head -1) &&
+      curl -sf
+      -H "Authorization: token $GH_TOKEN"
+      -H "Content-Type: application/zip"
+      --data-binary @"$ZIP"
+      "{{uploadUrl}}?name=$(basename $ZIP)"
+    environment:
+      GH_TOKEN: "{{githubToken}}"
+    outputMapping:
+      stdout: uploadResult
+      success: uploadSuccess
+
+  out:
+    type: output
+    label: Upload Complete
+    outputMapping:
+      uploadResult: uploadResult
+      uploadSuccess: uploadSuccess
+
+edges:
+  - from: start
+    to: build
+  - from: build
+    to: get_upload_url
+  - from: get_upload_url
+    to: upload_zip
+  - from: upload_zip
+    to: out
