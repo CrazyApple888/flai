@@ -1,7 +1,8 @@
 package me.drew.flai.ui.service
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.WriteIntentReadAction
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -24,6 +25,8 @@ import me.drew.flai.usecase.ListPipelinesUseCase
 import me.drew.flai.usecase.RunPipelineUseCase
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 private val LOG = logger<FlaiPipelineUiService>()
 
@@ -94,14 +97,26 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
     fun getSavedInputValues(pipelineId: PipelineId): Map<String, String> =
         savedInputs[pipelineId] ?: emptyMap()
 
+    private suspend fun saveAllDocumentsOnEdt() {
+        suspendCancellableCoroutine { continuation ->
+            ApplicationManager.getApplication().invokeLater(
+                {
+                    try {
+                        FileDocumentManager.getInstance().saveAllDocuments()
+                        continuation.resume(Unit)
+                    } catch (e: Throwable) {
+                        continuation.resumeWithException(e)
+                    }
+                },
+                ModalityState.nonModal()
+            )
+        }
+    }
+
     fun refresh() {
         serviceScope.launch {
             try {
-                withContext(Dispatchers.Main) {
-                    WriteIntentReadAction.run {
-                        FileDocumentManager.getInstance().saveAllDocuments()
-                    }
-                }
+                saveAllDocumentsOnEdt()
                 repository.refreshVfs()
                 val uiPipelines = loadAllWithPaths()
                 _pipelines.value = uiPipelines
