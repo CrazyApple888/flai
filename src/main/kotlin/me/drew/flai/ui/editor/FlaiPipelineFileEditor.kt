@@ -151,7 +151,7 @@ class FlaiPipelineFileEditor(
             }
         })
 
-        document?.addDocumentListener(docListener)
+        document?.addDocumentListener(docListener, this)
 
         buildUI()
         subscribeToExecution()
@@ -456,7 +456,6 @@ class FlaiPipelineFileEditor(
     }
 
     override fun dispose() {
-        document?.removeDocumentListener(docListener)
         savedTimer?.stop()
         editorScope.cancel()
     }
