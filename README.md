@@ -1,8 +1,8 @@
 # flai
 
 ![Build](https://github.com/CrazyApple888/flai/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
+[![Version](https://img.shields.io/jetbrains/plugin/v/31958-flai.svg)](https://plugins.jetbrains.com/plugin/31958-flai)
+[![Downloads](https://img.shields.io/jetbrains/plugin/d/31958-flai.svg)](https://plugins.jetbrains.com/plugin/31958-flai)
 
 > **Agentic pipelines for your IDE.** Wire LLMs, IDE tools, shell commands, and file I/O into reusable YAML workflows — and run them from a gutter icon.
 
@@ -118,7 +118,7 @@ Full spec: [`docs/pipeline-yaml-spec.md`](docs/pipeline-yaml-spec.md).
 - **From JetBrains Marketplace** (recommended):
   <kbd>Settings/Preferences</kbd> → <kbd>Plugins</kbd> → <kbd>Marketplace</kbd> → search **flai** → <kbd>Install</kbd>
 
-- **From the marketplace site:** [plugins.jetbrains.com/plugin/MARKETPLACE_ID](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID) → <kbd>Install to ...</kbd>
+- **From the marketplace site:** [plugins.jetbrains.com/plugin/31958-flai](https://plugins.jetbrains.com/plugin/31958-flai) → <kbd>Install to ...</kbd>
 
 - **Manually:** download the [latest release](https://github.com/CrazyApple888/flai/releases/latest) →
   <kbd>Settings/Preferences</kbd> → <kbd>Plugins</kbd> → <kbd>⚙️</kbd> → <kbd>Install plugin from disk…</kbd>
