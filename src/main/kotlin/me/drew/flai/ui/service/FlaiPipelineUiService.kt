@@ -8,7 +8,10 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import me.drew.flai.domain.model.InputGate
 import me.drew.flai.domain.model.PipelineId
 import me.drew.flai.domain.model.TraceStatus
@@ -21,7 +24,6 @@ import me.drew.flai.infrastructure.pipeline.YamlPipelineRepository
 import me.drew.flai.infrastructure.template.SimpleTemplateRenderer
 import me.drew.flai.infrastructure.tool.IdeToolRegistry
 import me.drew.flai.ui.model.*
-import me.drew.flai.usecase.ListPipelinesUseCase
 import me.drew.flai.usecase.RunPipelineUseCase
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -84,7 +86,6 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
     )
 
     private val runUseCase = RunPipelineUseCase(repository, pipelineExecutor, validator)
-    private val listUseCase = ListPipelinesUseCase(repository)
 
     private val _pipelines = MutableStateFlow<List<UiPipeline>>(emptyList())
     val pipelines: StateFlow<List<UiPipeline>> = _pipelines.asStateFlow()
