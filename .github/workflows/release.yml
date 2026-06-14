@@ -18,6 +18,7 @@ jobs:
   release:
     name: Publish Plugin
     runs-on: ubuntu-latest
+    if: ${{ github.actor == github.repository_owner }}
     permissions:
       contents: write
     env:
