@@ -167,7 +167,7 @@ internal class CanvasRenderer {
             drawLlmStar(g2, x + NODE_WIDTH - 10, y + 10, 6)
         }
 
-        val status = state.executionStatus[node.gate.label]
+        val status = state.executionStatus[node.gateId]
         if (status != null) {
             drawStatusBadge(g2, x + NODE_WIDTH - 16, y + 4, status, state.animTick)
         }

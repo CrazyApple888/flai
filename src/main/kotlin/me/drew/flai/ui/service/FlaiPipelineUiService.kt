@@ -49,7 +49,8 @@ internal fun traceStatusToGateStatus(status: TraceStatus): GateStatus = when (st
     TraceStatus.SUCCESS -> GateStatus.SUCCESS
     TraceStatus.FAILURE -> GateStatus.FAILURE
     TraceStatus.TOLERATED_FAILURE -> GateStatus.TOLERATED_FAILURE
-    else -> GateStatus.SUCCESS
+    TraceStatus.STARTED -> GateStatus.RUNNING
+    TraceStatus.SKIPPED -> GateStatus.SUCCESS
 }
 
 @Service(Service.Level.PROJECT)
@@ -198,13 +199,13 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
     private fun handleEvent(event: ExecutionEvent) {
         when (event) {
             is ExecutionEvent.GateStarted ->
-                _logRows.value += GateRow(event.gateLabel, GateStatus.RUNNING)
+                _logRows.value += GateRow(event.gateLabel, GateStatus.RUNNING, gateId = event.gateId)
 
             is ExecutionEvent.GateCompleted -> {
                 val entry = event.entry
                 val status = traceStatusToGateStatus(entry.status)
                 _logRows.value = _logRows.value.map { row ->
-                    if (row.gateName == entry.gateLabel && row.status == GateStatus.RUNNING)
+                    if (row.gateId == entry.gateId.value && row.status == GateStatus.RUNNING)
                         row.copy(status = status, durationMs = entry.durationMs, message = entry.message)
                     else row
                 }

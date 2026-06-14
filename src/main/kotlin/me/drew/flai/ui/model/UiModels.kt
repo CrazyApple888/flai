@@ -22,6 +22,7 @@ data class InputFieldSpec(
 data class GateRow(
     val gateName: String,
     val status: GateStatus,
+    val gateId: String? = null,
     val durationMs: Long? = null,
     val message: String? = null,
     val outputLabel: String? = null,
