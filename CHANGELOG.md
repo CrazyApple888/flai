@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [0.2.0]
+### Added
+- Fault-tolerant gates: opt-in per-gate `faultTolerant` flag. When a fault-tolerant gate fails, the pipeline continues along its normal outgoing edges instead of aborting. Disabled by default, so existing pipelines are unchanged.
+- "Fault Tolerant" checkbox in the node property panel, available for every gate type.
+- Tolerated failures are surfaced distinctly — a warning icon and orange badge in the execution log and on the canvas node — never shown as success.
+
+### Fixed
+- Execution log rows and canvas status badges now match gates by id instead of label, so pipelines with duplicate gate labels render each gate's status independently.
+
 ## [0.1.0]
 ### Added
 - Visual pipeline editor with drag-and-drop canvas, node palette, and property panels
