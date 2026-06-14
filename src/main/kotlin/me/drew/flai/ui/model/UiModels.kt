@@ -28,7 +28,7 @@ data class GateRow(
     val outputValue: String? = null,
 )
 
-enum class GateStatus { RUNNING, SUCCESS, FAILURE, OUTPUT }
+enum class GateStatus { RUNNING, SUCCESS, FAILURE, OUTPUT, TOLERATED_FAILURE }
 
 sealed class ExecutionUiState {
     object Idle : ExecutionUiState()

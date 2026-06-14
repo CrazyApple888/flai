@@ -505,6 +505,45 @@ class YamlPipelineSerializerTest {
     }
 
     @Test
+    fun `round-trip preserves faultTolerant true across all 8 gate types`() {
+        val gates = mapOf(
+            GateId("start") to InputGate(GateId("start"), "Start", faultTolerant = true),
+            GateId("out") to OutputGate(GateId("out"), "Out", faultTolerant = true),
+            GateId("llm") to LlmGate(
+                GateId("llm"), "LLM", promptTemplate = "x",
+                endpointConfig = LlmEndpointConfig("https://api.example.com", "key", "model"),
+                faultTolerant = true,
+            ),
+            GateId("logic") to LogicGate(
+                GateId("logic"), "Logic",
+                branches = listOf(Branch("yes", BranchCondition.Always)),
+                faultTolerant = true,
+            ),
+            GateId("tool") to ToolGate(GateId("tool"), "Tool", toolName = "T", faultTolerant = true),
+            GateId("bash") to BashGate(GateId("bash"), "Bash", command = "printf hi", faultTolerant = true),
+            GateId("read") to ReadFileGate(GateId("read"), "Read", path = "/f.txt", faultTolerant = true),
+            GateId("write") to WriteFileGate(
+                GateId("write"), "Write", path = "/o.txt", contentKey = "content", faultTolerant = true,
+            ),
+        )
+        val pipeline = minimalPipeline(gates, entryGateId = GateId("start"))
+        val result = roundTrip(pipeline)
+        for ((id, _) in gates) {
+            assertTrue("Gate '${id.value}' should be fault tolerant after round-trip", result.gates[id]!!.faultTolerant)
+        }
+    }
+
+    @Test
+    fun `faultTolerant false omits the key`() {
+        val gate = BashGate(GateId("bash1"), "Bash", command = "printf hello", faultTolerant = false)
+        val pipeline = minimalPipeline(mapOf(GateId("bash1") to gate))
+        val yaml = serializer.serialize(pipeline)
+        assertTrue("Default faultTolerant should not appear in YAML", !yaml.contains("faultTolerant"))
+        val parsed = parser.parse(yaml).gates[GateId("bash1")] as BashGate
+        assertEquals(false, parsed.faultTolerant)
+    }
+
+    @Test
     fun `description omitted when empty`() {
         val gate = InputGate(id = GateId("g1"), label = "G1")
         val pipeline = minimalPipeline(mapOf(GateId("g1") to gate))

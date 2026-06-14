@@ -15,6 +15,7 @@ gates:
   gate-id:
     type: input | output | llm | logic | tool | bash | read-file | write-file
     label: Human label        # optional, defaults to gate-id
+    faultTolerant: false      # optional, default false — see "Fault-tolerant gates"
     # ... gate-specific fields
 
 edges:
@@ -372,7 +373,31 @@ If `outputMapping` is empty, all tool outputs are written directly to context us
 2. Each gate runs; `ExecutionContext` is mutated by `outputMapping`.
 3. Next gate determined by edge with `fromPort = "out"` (default) or the routed port for `logic` gates.
 4. `output` gate terminates the pipeline (`GateResult.Success` with no next gate).
-5. Any `GateResult.Failure` stops execution immediately and emits `PipelineFailed`.
+5. Any `GateResult.Failure` stops execution immediately and emits `PipelineFailed`, unless the failing gate is `faultTolerant` (see below).
+
+## Fault-tolerant gates
+
+Any gate may set `faultTolerant: true`. The field is optional and defaults to `false`, so existing pipelines are unaffected.
+
+- **Default (`false`)** — a gate failure aborts the run and emits `PipelineFailed` (fail-fast, the behavior above).
+- **`true`** — a gate failure does **not** abort the run. The failure is recorded distinctly in the execution log as a *tolerated failure* (never as a success), and execution continues along the gate's normal outgoing edge as if the gate had completed.
+
+Applies to all gate types: `input`, `output`, `llm`, `logic`, `tool`, `bash`, `read-file`, `write-file`.
+
+Behavior of a tolerated failure:
+
+- The failed gate contributes **no outputs** to the `ExecutionContext`. Any context values the gate would have set remain absent; downstream gates run against whatever context already exists. Authors are responsible for designing downstream gates to tolerate missing values.
+- Continuation uses the gate's `out` port for every gate type **except `logic`**, which continues along its `defaultPort`. A `logic` gate only fails when no branch matches *and* `defaultPort` is `null`; in that case there is no edge to follow, so the tolerated failure is recorded and the run ends normally. (A `logic` branch evaluating to false is normal success, not a failure, and is unaffected by this flag.)
+- If a fault-tolerant gate has no outgoing edge, the failure is recorded and the run ends normally.
+- A non-fault-tolerant gate that fails downstream of a tolerated failure still aborts the run (fail-fast still applies per gate).
+
+```yaml
+flaky-step:
+  type: bash
+  label: Optional best-effort step
+  command: ./flaky.sh
+  faultTolerant: true   # failure here does not abort the run
+```
 
 ## Full example
 

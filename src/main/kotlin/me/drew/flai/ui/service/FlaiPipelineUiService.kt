@@ -41,6 +41,17 @@ internal fun mergeInputs(
     spec.key to (retained[spec.key] ?: spec.defaultValue)
 }
 
+/**
+ * Maps a [TraceStatus] to its [GateStatus]. A [TraceStatus.TOLERATED_FAILURE] must map to
+ * [GateStatus.TOLERATED_FAILURE] and never to [GateStatus.SUCCESS] (FR-9 / AC-7).
+ */
+internal fun traceStatusToGateStatus(status: TraceStatus): GateStatus = when (status) {
+    TraceStatus.SUCCESS -> GateStatus.SUCCESS
+    TraceStatus.FAILURE -> GateStatus.FAILURE
+    TraceStatus.TOLERATED_FAILURE -> GateStatus.TOLERATED_FAILURE
+    else -> GateStatus.SUCCESS
+}
+
 @Service(Service.Level.PROJECT)
 class FlaiPipelineUiService(private val project: Project) : Disposable {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -191,11 +202,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
 
             is ExecutionEvent.GateCompleted -> {
                 val entry = event.entry
-                val status = when (entry.status) {
-                    TraceStatus.SUCCESS -> GateStatus.SUCCESS
-                    TraceStatus.FAILURE -> GateStatus.FAILURE
-                    else -> GateStatus.SUCCESS
-                }
+                val status = traceStatusToGateStatus(entry.status)
                 _logRows.value = _logRows.value.map { row ->
                     if (row.gateName == entry.gateLabel && row.status == GateStatus.RUNNING)
                         row.copy(status = status, durationMs = entry.durationMs, message = entry.message)

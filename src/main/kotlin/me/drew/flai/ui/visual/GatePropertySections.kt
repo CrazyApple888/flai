@@ -44,6 +44,15 @@ class GatePropertySections(
         basicCard.add(labeledRow("Label", buildTextField(node.gate.label, editableList) { newLabel ->
             onGateUpdated(nodeSeq, rebuildWithLabel(node.gate, newLabel))
         }))
+        val faultTolerantCheck = JCheckBox().apply {
+            isSelected = node.gate.faultTolerant
+            addActionListener {
+                val fresh = freshGate(nodeSeq, node.gate)
+                onGateUpdated(nodeSeq, rebuildWithFaultTolerant(fresh, isSelected))
+            }
+        }
+        editableList.add(faultTolerantCheck)
+        basicCard.add(labeledRow("Fault Tolerant", faultTolerantCheck))
         return SectionResult(
             cards = listOf(cardPanel("Basic Info", basicCard)),
             editableComponents = editableList,
@@ -813,5 +822,16 @@ class GatePropertySections(
         is BashGate -> gate.copy(label = newLabel)
         is ReadFileGate -> gate.copy(label = newLabel)
         is WriteFileGate -> gate.copy(label = newLabel)
+    }
+
+    private fun rebuildWithFaultTolerant(gate: Gate, value: Boolean): Gate = when (gate) {
+        is InputGate -> gate.copy(faultTolerant = value)
+        is OutputGate -> gate.copy(faultTolerant = value)
+        is LlmGate -> gate.copy(faultTolerant = value)
+        is LogicGate -> gate.copy(faultTolerant = value)
+        is ToolGate -> gate.copy(faultTolerant = value)
+        is BashGate -> gate.copy(faultTolerant = value)
+        is ReadFileGate -> gate.copy(faultTolerant = value)
+        is WriteFileGate -> gate.copy(faultTolerant = value)
     }
 }

@@ -258,6 +258,11 @@ internal class CanvasRenderer {
                 g2.fillOval(cx - r, cy - r, r * 2, r * 2)
             }
 
+            GateStatus.TOLERATED_FAILURE -> {
+                g2.color = Color(230, 160, 0)
+                g2.fillOval(cx - r, cy - r, r * 2, r * 2)
+            }
+
             GateStatus.OUTPUT -> {
                 g2.color = Color(180, 100, 0)
                 g2.fillOval(cx - r, cy - r, r * 2, r * 2)

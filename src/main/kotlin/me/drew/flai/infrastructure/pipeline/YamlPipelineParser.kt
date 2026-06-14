@@ -53,6 +53,7 @@ class YamlPipelineParser {
     private fun parseGate(id: GateId, map: Map<String, Any>): Gate {
         val type = map["type"] as? String ?: throw PipelineLoadException("Gate '${id.value}' missing 'type'")
         val label = map["label"] as? String ?: id.value
+        val faultTolerant = parseBoolean(id, map["faultTolerant"], "faultTolerant") ?: false
 
         if (type != "llm" && map.containsKey("skills")) {
             throw PipelineLoadException(
@@ -65,11 +66,13 @@ class YamlPipelineParser {
                 id = id,
                 label = label,
                 inputSchema = parseInputSchema(map["schema"]),
+                faultTolerant = faultTolerant,
             )
             "output" -> OutputGate(
                 id = id,
                 label = label,
                 outputMapping = parseStringMap(map["outputMapping"]),
+                faultTolerant = faultTolerant,
             )
             "llm" -> LlmGate(
                 id = id,
@@ -79,12 +82,14 @@ class YamlPipelineParser {
                 inputMapping = parseStringMap(map["inputMapping"]),
                 outputMapping = parseStringMap(map["outputMapping"]).ifEmpty { mapOf("response" to "response") },
                 endpointConfig = parseEndpointConfig(id, map["endpoint"]),
+                faultTolerant = faultTolerant,
             )
             "logic" -> LogicGate(
                 id = id,
                 label = label,
                 branches = parseBranches(id, map["branches"]),
                 defaultPort = map["defaultPort"] as? String ?: "default",
+                faultTolerant = faultTolerant,
             )
             "tool" -> ToolGate(
                 id = id,
@@ -93,6 +98,7 @@ class YamlPipelineParser {
                     ?: throw PipelineLoadException("Tool gate '${id.value}' missing 'tool'"),
                 inputMapping = parseStringMap(map["inputMapping"]),
                 outputMapping = parseStringMap(map["outputMapping"]),
+                faultTolerant = faultTolerant,
             )
             "bash" -> BashGate(
                 id = id,
@@ -103,6 +109,7 @@ class YamlPipelineParser {
                 timeoutSeconds = parsePositiveInt(id, map["timeoutSeconds"], "timeoutSeconds") ?: 120,
                 failOnNonZeroExit = parseBoolean(id, map["failOnNonZeroExit"], "failOnNonZeroExit") ?: true,
                 outputMapping = parseStrictStringMap(id, map["outputMapping"], "outputMapping", required = false),
+                faultTolerant = faultTolerant,
             )
             "read-file" -> ReadFileGate(
                 id = id,
@@ -110,6 +117,7 @@ class YamlPipelineParser {
                 path = map["path"] as? String
                     ?: throw PipelineLoadException("read-file gate '${id.value}' missing 'path'"),
                 outputKey = map["outputKey"] as? String ?: "content",
+                faultTolerant = faultTolerant,
             )
             "write-file" -> WriteFileGate(
                 id = id,
@@ -124,6 +132,7 @@ class YamlPipelineParser {
                     "fail-if-exists" -> WriteMode.FAIL_IF_EXISTS
                     else -> throw PipelineLoadException("write-file gate '${id.value}': unknown mode '$m'")
                 },
+                faultTolerant = faultTolerant,
             )
             else -> throw PipelineLoadException("Unknown gate type '$type' for gate '${id.value}'")
         }
