@@ -7,11 +7,33 @@
 > **Agentic pipelines for your IDE.** Wire LLMs, IDE tools, shell commands, and file I/O into reusable YAML workflows — and run them from a gutter icon.
 
 <!-- Plugin description -->
-**flai** turns IntelliJ-based IDEs into an agent runtime. Define multi-step LLM pipelines as plain YAML, drop them in `.flai/`, and execute them on any file with a single click. No external orchestrator, no separate UI, no copy-paste between ChatGPT and your editor.
+**flai** turns IntelliJ-based IDEs into an agent runtime. Define multi-step LLM pipelines as plain YAML, drop them in <code>.flai/</code>, and run them on any file with a single click — straight from a gutter icon or a dedicated tool window. No external orchestrator, no separate app, no copy-paste between a chat window and your editor.
 
-Each pipeline is a graph of **gates** — LLM calls, branching logic, shell commands, file reads/writes, and IDE tools — connected by edges. Outputs of one gate flow into the next via a shared execution context. Credentials live in IntelliJ's `PasswordSafe`. Skills (reusable instruction bundles) are just markdown files on disk.
+Each pipeline is a graph of <b>gates</b> connected by edges. Outputs of one gate flow into the next through a shared execution context, so you can chain an LLM call into a shell command into a file write without glue code.
+
+<b>Gate types:</b>
+<ul>
+  <li><b>input</b> — entry point; seeds context from a typed schema (string / number / boolean / JSON).</li>
+  <li><b>llm</b> — calls an LLM endpoint with a templated prompt and optional reusable skills. Anthropic and OpenAI response shapes supported out of the box.</li>
+  <li><b>logic</b> — branches execution on context variables (comparison, switch, always).</li>
+  <li><b>tool</b> — invokes a built-in IDE tool: file read, symbol search, run command.</li>
+  <li><b>bash</b> — runs a non-interactive shell command with timeout and env overlay.</li>
+  <li><b>read-file / write-file</b> — move data between disk and context.</li>
+  <li><b>output</b> — terminal gate; surfaces selected results back in the IDE.</li>
+</ul>
+
+<b>Why flai:</b>
+<ul>
+  <li><b>Pipelines as code.</b> YAML files checked into git — reviewable in PRs, diffable, branchable.</li>
+  <li><b>Native IDE integration.</b> Gutter run icon on <code>*.flai.yaml</code> and <code>*.flai</code> files, plus a live execution log.</li>
+  <li><b>Bring your own model.</b> Endpoint and credentials configured per gate.</li>
+  <li><b>Skills, not megaprompts.</b> Compose reusable instruction files (<code>.flai/skills/*.md</code>) per LLM gate.</li>
+  <li><b>Secrets stay local.</b> LLM API keys resolve from a pipeline context variable (<code>apiKeyVar</code>) or from IntelliJ's <code>PasswordSafe</code> (<code>flai/&lt;credentialId&gt;</code>) — never written to YAML.</li>
+</ul>
 
 Built for engineers who want their AI workflows to live in the same repo as the code they operate on — versioned, reviewable, and runnable without leaving the IDE.
+
+<p><b>Documentation:</b> <a href="https://github.com/CrazyApple888/flai">github.com/CrazyApple888/flai</a> — full <a href="https://github.com/CrazyApple888/flai/blob/main/docs/pipeline-yaml-spec.md">pipeline YAML specification</a>, examples, and gate reference.</p>
 <!-- Plugin description end -->
 
 ---
@@ -48,7 +70,7 @@ Built for engineers who want their AI workflows to live in the same repo as the 
 - **Tools that touch your code.** Built-in `ide.readFile`, `ide.searchSymbol`, `ide.runCommand`, plus first-class `bash`, `read-file`, and `write-file` gates.
 - **Skills, not megaprompts.** Compose reusable instruction files (`.flai/skills/*.md`) per LLM gate.
 - **Branching logic.** `logic` gates with `comparison` / `switch` / `always` conditions route execution across paths.
-- **Secrets stay local.** API keys stored via IntelliJ `PasswordSafe` under `flai/<credentialId>`. Never written to YAML.
+- **Secrets stay local.** LLM API keys resolve from a pipeline context variable (`apiKeyVar`) or via IntelliJ `PasswordSafe` under `flai/<credentialId>`. Never written to YAML.
 
 ## Gate types
 

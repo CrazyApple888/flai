@@ -425,7 +425,8 @@ class FlaiPipelineFileEditor(
                 withContext(Dispatchers.Main) {
                     val statusMap = mutableMapOf<String, GateStatus>()
                     for (row in rows) {
-                        statusMap[row.gateName] = row.status
+                        val id = row.gateId ?: continue
+                        statusMap[id] = row.status
                     }
                     canvas.updateExecutionStatus(statusMap)
                 }

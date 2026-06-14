@@ -181,6 +181,9 @@ class YamlPipelineSerializer {
                 }
             }
         }
+        if (gate.faultTolerant) {
+            sb.appendLine("    faultTolerant: true")
+        }
     }
 
     private fun appendCondition(sb: StringBuilder, condition: BranchCondition) {

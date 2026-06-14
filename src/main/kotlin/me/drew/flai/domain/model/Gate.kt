@@ -6,12 +6,14 @@ value class GateId(val value: String)
 sealed class Gate {
     abstract val id: GateId
     abstract val label: String
+    abstract val faultTolerant: Boolean
 }
 
 data class InputGate(
     override val id: GateId,
     override val label: String,
     val inputSchema: List<InputField> = emptyList(),
+    override val faultTolerant: Boolean = false,
 ) : Gate()
 
 data class InputField(
@@ -27,6 +29,7 @@ data class OutputGate(
     override val id: GateId,
     override val label: String,
     val outputMapping: Map<String, String> = emptyMap(),
+    override val faultTolerant: Boolean = false,
 ) : Gate()
 
 data class LlmGate(
@@ -37,6 +40,7 @@ data class LlmGate(
     val inputMapping: Map<String, String> = emptyMap(),
     val outputMapping: Map<String, String> = mapOf("response" to "response"),
     val endpointConfig: LlmEndpointConfig,
+    override val faultTolerant: Boolean = false,
 ) : Gate()
 
 data class LlmEndpointConfig(
@@ -52,6 +56,7 @@ data class LogicGate(
     override val label: String,
     val branches: List<Branch>,
     val defaultPort: String? = "default",
+    override val faultTolerant: Boolean = false,
 ) : Gate()
 
 data class Branch(
@@ -82,6 +87,7 @@ data class ToolGate(
     val toolName: String,
     val inputMapping: Map<String, String> = emptyMap(),
     val outputMapping: Map<String, String> = emptyMap(),
+    override val faultTolerant: Boolean = false,
 ) : Gate()
 
 data class BashGate(
@@ -93,6 +99,7 @@ data class BashGate(
     val timeoutSeconds: Int = 120,
     val failOnNonZeroExit: Boolean = true,
     val outputMapping: Map<String, String> = emptyMap(),
+    override val faultTolerant: Boolean = false,
 ) : Gate()
 
 enum class WriteMode { OVERWRITE, APPEND, FAIL_IF_EXISTS }
@@ -102,6 +109,7 @@ data class ReadFileGate(
     override val label: String,
     val path: String,
     val outputKey: String = "content",
+    override val faultTolerant: Boolean = false,
 ) : Gate()
 
 data class WriteFileGate(
@@ -110,4 +118,5 @@ data class WriteFileGate(
     val path: String,
     val contentKey: String,
     val mode: WriteMode = WriteMode.OVERWRITE,
+    override val faultTolerant: Boolean = false,
 ) : Gate()

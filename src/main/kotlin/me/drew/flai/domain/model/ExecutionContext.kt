@@ -38,4 +38,4 @@ data class TraceEntry(
     val durationMs: Long = 0,
 )
 
-enum class TraceStatus { STARTED, SUCCESS, FAILURE, SKIPPED }
+enum class TraceStatus { STARTED, SUCCESS, FAILURE, SKIPPED, TOLERATED_FAILURE }

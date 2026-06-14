@@ -22,13 +22,14 @@ data class InputFieldSpec(
 data class GateRow(
     val gateName: String,
     val status: GateStatus,
+    val gateId: String? = null,
     val durationMs: Long? = null,
     val message: String? = null,
     val outputLabel: String? = null,
     val outputValue: String? = null,
 )
 
-enum class GateStatus { RUNNING, SUCCESS, FAILURE, OUTPUT }
+enum class GateStatus { RUNNING, SUCCESS, FAILURE, OUTPUT, TOLERATED_FAILURE }
 
 sealed class ExecutionUiState {
     object Idle : ExecutionUiState()

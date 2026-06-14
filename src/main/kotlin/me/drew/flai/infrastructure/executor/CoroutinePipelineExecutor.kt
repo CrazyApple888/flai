@@ -61,10 +61,25 @@ class CoroutinePipelineExecutor(private val executors: List<GateExecutor<*>>) : 
                 pipeline.nextGateId(gate.id, result.port)
             }
             is GateResult.Failure -> {
-                val entry = TraceEntry(gate.id, gate.label, TraceStatus.FAILURE, result.message, duration)
-                context.trace += entry
-                send(ExecutionEvent.GateCompleted(entry))
-                throw result.error
+                if (gate.faultTolerant) {
+                    val reason = result.message.ifBlank { "no reason available" }
+                    val entry = TraceEntry(
+                        gate.id,
+                        gate.label,
+                        TraceStatus.TOLERATED_FAILURE,
+                        "tolerated failure: $reason",
+                        duration,
+                    )
+                    context.trace += entry
+                    send(ExecutionEvent.GateCompleted(entry))
+                    val port = if (gate is LogicGate) gate.defaultPort ?: "out" else "out"
+                    pipeline.nextGateId(gate.id, port)
+                } else {
+                    val entry = TraceEntry(gate.id, gate.label, TraceStatus.FAILURE, result.message, duration)
+                    context.trace += entry
+                    send(ExecutionEvent.GateCompleted(entry))
+                    throw result.error
+                }
             }
         }
     }

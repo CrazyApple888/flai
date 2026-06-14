@@ -5,6 +5,7 @@ import com.intellij.openapi.Disposable
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.CollectionListModel
 import com.intellij.ui.ColoredListCellRenderer
+import com.intellij.ui.JBColor
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
@@ -102,6 +103,9 @@ class ExecutionLogPanel(
     }
 
     private class GateRowRenderer : ColoredListCellRenderer<GateRow>() {
+        private val WARNING_ATTRIBUTES =
+            SimpleTextAttributes(SimpleTextAttributes.STYLE_BOLD, JBColor.ORANGE)
+
         override fun customizeCellRenderer(
             list: JList<out GateRow>,
             row: GateRow,
@@ -129,6 +133,13 @@ class ExecutionLogPanel(
                 GateStatus.FAILURE -> {
                     icon = AllIcons.RunConfigurations.TestFailed
                     append(row.gateName, SimpleTextAttributes.ERROR_ATTRIBUTES)
+                    row.message?.let {
+                        append("  $it", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+                    }
+                }
+                GateStatus.TOLERATED_FAILURE -> {
+                    icon = AllIcons.General.Warning
+                    append(row.gateName, WARNING_ATTRIBUTES)
                     row.message?.let {
                         append("  $it", SimpleTextAttributes.GRAYED_ATTRIBUTES)
                     }
