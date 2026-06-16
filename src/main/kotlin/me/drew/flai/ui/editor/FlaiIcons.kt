@@ -1,11 +1,12 @@
 package me.drew.flai.ui.editor
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.util.IconLoader
 import javax.swing.Icon
 
 object FlaiIcons {
-    // Fall back to built-in icons until custom SVGs are added
-    val PIPELINE_FILE: Icon = AllIcons.FileTypes.Yaml
+    // Custom flai pipeline-node logo
+    val PIPELINE_FILE: Icon = IconLoader.getIcon("/icons/flaiFileType.svg", FlaiIcons::class.java)
     val GUTTER_RUN: Icon = AllIcons.Actions.Execute
 
     // Gate-type icons mapped to closest AllIcons equivalents

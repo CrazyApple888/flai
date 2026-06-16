@@ -14,6 +14,7 @@
             id="FlaiPipelines"
             displayName="Flai Pipelines"
             anchor="right"
+            icon="/icons/flaiToolWindow.svg"
             factoryClass="me.drew.flai.ui.toolwindow.PipelineToolWindowFactory"/>
 
         <projectService
@@ -27,6 +28,10 @@
             implementationClass="me.drew.flai.ui.editor.FlaiYamlFileType"
             patterns="*.flai.yaml;*.flai"
             language="yaml"/>
+
+        <notificationGroup
+            id="Flai Pipelines"
+            displayType="BALLOON"/>
 
         <runLineMarkerContributor
             language="yaml"
