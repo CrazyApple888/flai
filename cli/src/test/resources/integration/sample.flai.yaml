@@ -1,0 +1,89 @@
+id: integration-sample
+name: Integration Sample
+description: Exercises input, bash, logic, write-file, read-file, tool and output gates
+entry: start
+gates:
+  start:
+    type: input
+    label: Collect inputs
+    schema:
+      - name: name
+        type: STRING
+        required: true
+      - name: outFile
+        type: STRING
+        required: false
+        default: greeting.txt
+  greet:
+    type: bash
+    label: Build greeting
+    command: printf 'Hello, {{name}}!'
+    outputMapping:
+      stdout: greeting
+  route:
+    type: logic
+    label: Route by name
+    defaultPort: other
+    branches:
+      - port: known
+        condition:
+          type: comparison
+          variable: name
+          op: EQ
+          value: World
+  write:
+    type: write-file
+    label: Persist greeting
+    path: "{{outFile}}"
+    contentKey: greeting
+  read:
+    type: read-file
+    label: Read greeting back
+    path: "{{outFile}}"
+    outputKey: fileContent
+  copy:
+    type: tool
+    label: Read via tool
+    tool: ide.readFile
+    inputMapping:
+      path: outFile
+    outputMapping:
+      content: toolContent
+  done:
+    type: output
+    label: Known person result
+    outputMapping:
+      greeting: greeting
+      fileContent: fileContent
+      toolContent: toolContent
+  fallback:
+    type: bash
+    label: Unknown person note
+    command: printf 'Sorry, I do not know you'
+    outputMapping:
+      stdout: note
+  done-other:
+    type: output
+    label: Unknown person result
+    outputMapping:
+      greeting: greeting
+      note: note
+edges:
+  - from: start
+    to: greet
+  - from: greet
+    to: route
+  - from: route
+    fromPort: known
+    to: write
+  - from: route
+    fromPort: other
+    to: fallback
+  - from: write
+    to: read
+  - from: read
+    to: copy
+  - from: copy
+    to: done
+  - from: fallback
+    to: done-other

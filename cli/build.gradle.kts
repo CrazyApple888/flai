@@ -21,6 +21,14 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 
+tasks.test {
+    dependsOn(tasks.named("fatJar"))
+    systemProperty(
+        "flai.cli.jar",
+        layout.buildDirectory.file("libs/flai-cli-${project.version}.jar").get().asFile.absolutePath,
+    )
+}
+
 tasks.register<Jar>("fatJar") {
     archiveBaseName.set("flai-cli")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
