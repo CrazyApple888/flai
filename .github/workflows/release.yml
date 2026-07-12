@@ -14,11 +14,53 @@ on:
 
 jobs:
 
+  # Detect which parts changed since the previous release tag
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      plugin: ${{ steps.diff.outputs.plugin }}
+      cli: ${{ steps.diff.outputs.cli }}
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+
+      - name: Fetch Sources
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Diff Against Previous Release Tag
+        id: diff
+        run: |
+          PREV=$(git describe --tags --abbrev=0 "${RELEASE_TAG}^" 2>/dev/null || true)
+          if [ -z "$PREV" ]; then
+            echo "No previous release tag found; building everything"
+            echo "plugin=true" >> "$GITHUB_OUTPUT"
+            echo "cli=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Comparing $PREV..$RELEASE_TAG"
+          CHANGED=$(git diff --name-only "$PREV" "$RELEASE_TAG")
+          echo "$CHANGED"
+          PLUGIN=false
+          CLI=false
+          if echo "$CHANGED" | grep -qE '^(src/|core/|build\.gradle\.kts|gradle\.properties|settings\.gradle\.kts|gradle/)'; then
+            PLUGIN=true
+          fi
+          if echo "$CHANGED" | grep -qE '^(cli/|core/|build\.gradle\.kts|gradle\.properties|settings\.gradle\.kts|gradle/)'; then
+            CLI=true
+          fi
+          echo "plugin=$PLUGIN" >> "$GITHUB_OUTPUT"
+          echo "cli=$CLI" >> "$GITHUB_OUTPUT"
+
   # Prepare and publish the plugin to JetBrains Marketplace repository
   release:
     name: Publish Plugin
     runs-on: ubuntu-latest
-    if: ${{ github.actor == github.repository_owner }}
+    needs: changes
+    if: ${{ needs.changes.outputs.plugin == 'true' && github.actor == github.repository_owner }}
     permissions:
       contents: write
     env:
@@ -82,3 +124,39 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
         run: ./gradlew publishPlugin
+
+  # Build and attach the CLI fat JAR to the GitHub release
+  release-cli:
+    name: Publish CLI
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.cli == 'true' && github.actor == github.repository_owner }}
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+
+      - name: Fetch Sources
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: true
+
+      - name: Build CLI
+        run: ./gradlew :cli:fatJar
+
+      - name: Upload CLI Release Asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ env.RELEASE_TAG }} ./cli/build/libs/flai-cli-*.jar --clobber

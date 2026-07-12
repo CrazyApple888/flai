@@ -75,6 +75,17 @@ jobs:
           name: ${{ steps.artifact.outputs.filename }}
           path: ./build/distributions/content/*/*
 
+      # Build the CLI fat JAR
+      - name: Build CLI
+        run: ./gradlew :cli:fatJar
+
+      # Store the CLI JAR as an artifact
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: flai-cli
+          path: ./cli/build/libs/flai-cli-*.jar
+
   # Run tests and upload a code coverage report
   test:
     name: Test
@@ -220,3 +231,12 @@ jobs:
           VERSION=$(./gradlew properties --property version --quiet --console=plain | tail -n 1 | cut -f2- -d ' ')
           ./gradlew buildPlugin
           gh release upload $VERSION ./build/distributions/*.zip
+
+      # Build and attach the CLI fat JAR to the draft release
+      - name: Attach CLI JAR to Draft Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(./gradlew properties --property version --quiet --console=plain | tail -n 1 | cut -f2- -d ' ')
+          ./gradlew :cli:fatJar
+          gh release upload $VERSION ./cli/build/libs/flai-cli-*.jar
