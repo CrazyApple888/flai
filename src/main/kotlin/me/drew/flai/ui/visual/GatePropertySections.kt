@@ -770,14 +770,15 @@ class GatePropertySections(
     fun labeledRow(labelText: String, field: JComponent): JPanel {
         return JPanel(BorderLayout(JBUI.scale(4), 0)).apply {
             isOpaque = false
+            val rowHeight = maxOf(JBUI.scale(28), field.preferredSize.height)
             val lbl = JBLabel("$labelText:").apply {
-                preferredSize = Dimension(JBUI.scale(90), JBUI.scale(28))
+                preferredSize = Dimension(JBUI.scale(90), rowHeight)
                 font = font.deriveFont(Font.PLAIN, JBUI.scale(11).toFloat())
                 foreground = UIManager.getColor("Label.disabledForeground")
             }
             add(lbl, BorderLayout.WEST)
             add(field, BorderLayout.CENTER)
-            maximumSize = Dimension(Int.MAX_VALUE, JBUI.scale(28))
+            maximumSize = Dimension(Int.MAX_VALUE, rowHeight)
         }
     }
 
