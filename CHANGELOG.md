@@ -2,6 +2,8 @@
 
 # flai Changelog
 
+## [Unreleased]
+
 ## [0.4.0]
 ### Added
 - `flai-cli`: non-interactive command-line pipeline runner for CI (`java -jar flai-cli.jar run <pipeline> --input key=value`), published as a fat JAR on GitHub releases. See `docs/cli.md`.
