@@ -4,6 +4,8 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.Service
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
@@ -29,8 +31,10 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.milliseconds
 
 private val LOG = logger<FlaiPipelineUiService>()
+private const val AUTO_HIDE_MILLIS = 4000L
 
 /**
  * Merges [retained] values over spec defaults. Only keys present in [specs] are included;
@@ -133,11 +137,28 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
                 repository.refreshVfs()
                 val uiPipelines = loadAllWithPaths()
                 _pipelines.value = uiPipelines
+                notifyReloaded(uiPipelines.size)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 LOG.error("Pipeline refresh failed", e)
             }
+        }
+    }
+
+    private fun notifyReloaded(count: Int) {
+        val message = when (count) {
+            1 -> "Reloaded 1 pipeline"
+            else -> "Reloaded $count pipelines"
+        }
+        val notification = NotificationGroupManager.getInstance()
+            .getNotificationGroup("Flai Pipelines")
+            .createNotification(message, NotificationType.INFORMATION)
+        notification.isImportant = false
+        notification.notify(project)
+        serviceScope.launch {
+            delay(AUTO_HIDE_MILLIS.milliseconds)
+            notification.expire()
         }
     }
 

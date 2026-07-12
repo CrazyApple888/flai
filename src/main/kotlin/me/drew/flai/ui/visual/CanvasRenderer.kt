@@ -119,7 +119,9 @@ internal class CanvasRenderer {
         g2.fill(shape)
 
         val clip = g2.clip
-        g2.clip = Rectangle(x, y, 4, NODE_HEIGHT)
+        // clip() intersects with the existing clip; setClip would replace it and
+        // allow painting outside the component bounds
+        g2.clip(Rectangle(x, y, 4, NODE_HEIGHT))
         g2.color = accent
         g2.fillRoundRect(x, y, 4, NODE_HEIGHT, ARC, ARC)
         g2.clip = clip
