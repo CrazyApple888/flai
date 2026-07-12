@@ -5,11 +5,11 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import me.drew.flai.domain.model.*
-import me.drew.flai.infrastructure.tool.IdeToolRegistry
+import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import java.awt.*
 import javax.swing.*
 
-class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(BorderLayout()) {
+class NodePropertyPanel(private val toolRegistry: DefaultToolRegistry) : JPanel(BorderLayout()) {
 
     private var isEditable: Boolean = true
 

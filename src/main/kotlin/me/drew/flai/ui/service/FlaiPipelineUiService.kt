@@ -24,7 +24,7 @@ import me.drew.flai.infrastructure.pipeline.PipelineValidator
 import me.drew.flai.infrastructure.pipeline.YamlPipelineParser
 import me.drew.flai.infrastructure.pipeline.YamlPipelineRepository
 import me.drew.flai.infrastructure.template.SimpleTemplateRenderer
-import me.drew.flai.infrastructure.tool.IdeToolRegistry
+import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import me.drew.flai.ui.model.*
 import me.drew.flai.usecase.RunPipelineUseCase
 import java.io.File
@@ -63,7 +63,7 @@ internal fun traceStatusToGateStatus(status: TraceStatus): GateStatus = when (st
 class FlaiPipelineUiService(private val project: Project) : Disposable {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val toolRegistry = IdeToolRegistry()
+    val toolRegistry = DefaultToolRegistry()
 
     private val llmClient = HttpLlmClient()
     private val renderer = SimpleTemplateRenderer()

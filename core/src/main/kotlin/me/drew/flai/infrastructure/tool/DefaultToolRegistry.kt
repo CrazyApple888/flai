@@ -4,7 +4,7 @@ import me.drew.flai.domain.port.Tool
 import me.drew.flai.domain.port.ToolRegistry
 import java.util.concurrent.ConcurrentHashMap
 
-class IdeToolRegistry : ToolRegistry {
+class DefaultToolRegistry : ToolRegistry {
     private val tools = ConcurrentHashMap<String, Tool>()
 
     override fun register(tool: Tool) {

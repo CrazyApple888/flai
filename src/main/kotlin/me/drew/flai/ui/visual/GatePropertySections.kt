@@ -5,7 +5,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import me.drew.flai.domain.model.*
-import me.drew.flai.infrastructure.tool.IdeToolRegistry
+import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import java.awt.*
 import java.awt.Component.LEFT_ALIGNMENT
 import javax.swing.*
@@ -20,7 +20,7 @@ data class SectionResult(
 )
 
 class GatePropertySections(
-    private val toolRegistry: IdeToolRegistry,
+    private val toolRegistry: DefaultToolRegistry,
     private val onGateUpdated: (nodeSeq: Int, gate: Gate) -> Unit,
     private val onRepaint: () -> Unit,
     private val onRefreshPanel: () -> Unit,

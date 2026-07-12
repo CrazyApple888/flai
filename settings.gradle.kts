@@ -11,3 +11,5 @@ plugins {
 }
 
 rootProject.name = "flai"
+
+include(":core")
