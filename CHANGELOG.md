@@ -2,12 +2,18 @@
 
 # flai Changelog
 
-## [Unreleased]
+## [0.4.0]
 ### Added
 - `flai-cli`: non-interactive command-line pipeline runner for CI (`java -jar flai-cli.jar run <pipeline> --input key=value`), published as a fat JAR on GitHub releases. See `docs/cli.md`.
 
 ### Changed
 - Internal restructuring into three Gradle modules: `core` (pure domain + executors), the IntelliJ plugin, and `cli`. Plugin release workflow now republishes the plugin only when plugin-affecting code changed.
+
+### Fixed
+- Canvas node decorations (accent stripe, entry badge, LLM star) are clipped to the rounded node body and no longer poke past the corners; the entry badge is now a corner wedge that follows the corner curve instead of a floating triangle.
+- Minimap projection matches the canvas transform, so the minimap no longer drifts or misscales at different zoom levels.
+- Zoom buttons no longer go missing from the pipeline editor overlay.
+- Property panel rows size to their field height instead of being cut off, and the panel scrolls correctly.
 
 ## [0.3.0]
 ### Added
