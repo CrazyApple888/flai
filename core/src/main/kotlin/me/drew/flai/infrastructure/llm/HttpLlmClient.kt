@@ -1,12 +1,10 @@
 package me.drew.flai.infrastructure.llm
 
 import com.google.gson.Gson
-import com.intellij.credentialStore.CredentialAttributes
-import com.intellij.credentialStore.generateServiceName
-import com.intellij.ide.passwordSafe.PasswordSafe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.drew.flai.domain.model.LlmEndpointConfig
+import me.drew.flai.domain.port.CredentialResolver
 import me.drew.flai.domain.port.LlmClient
 import java.net.URI
 import java.net.http.HttpClient
@@ -14,7 +12,9 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-class HttpLlmClient : LlmClient {
+class HttpLlmClient(
+    private val credentialResolver: CredentialResolver,
+) : LlmClient {
     private val httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(30))
         .build()
@@ -23,8 +23,8 @@ class HttpLlmClient : LlmClient {
     override suspend fun complete(config: LlmEndpointConfig, prompt: String, apiKey: String?): String =
         withContext(Dispatchers.IO) {
             val apiKey = apiKey
-                ?: resolveCredential(config.credentialId).takeIf { !it.isNullOrBlank() }
-                ?: throw IllegalStateException("No API key: set apiKeyVar in pipeline or store credential '${config.credentialId}' in PasswordSafe")
+                ?: credentialResolver.resolve(config.credentialId).takeIf { !it.isNullOrBlank() }
+                ?: throw IllegalStateException("No API key: set apiKeyVar in pipeline or provide credential '${config.credentialId}'")
 
             val body = buildRequestBody(config, prompt)
             val json = gson.toJson(body)
@@ -46,11 +46,6 @@ class HttpLlmClient : LlmClient {
 
             extractContent(response.body())
         }
-
-    private fun resolveCredential(credentialId: String): String? {
-        val attrs = CredentialAttributes(generateServiceName("flai", credentialId))
-        return PasswordSafe.instance.getPassword(attrs)
-    }
 
     @Suppress("UNCHECKED_CAST")
     private fun buildRequestBody(config: LlmEndpointConfig, prompt: String): Map<String, Any?> {

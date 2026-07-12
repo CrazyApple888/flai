@@ -18,6 +18,7 @@ import me.drew.flai.domain.model.InputGate
 import me.drew.flai.domain.model.PipelineId
 import me.drew.flai.domain.model.TraceStatus
 import me.drew.flai.domain.service.ExecutionEvent
+import me.drew.flai.infrastructure.credential.PasswordSafeCredentialResolver
 import me.drew.flai.infrastructure.executor.*
 import me.drew.flai.infrastructure.llm.HttpLlmClient
 import me.drew.flai.infrastructure.pipeline.PipelineValidator
@@ -65,7 +66,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
 
     val toolRegistry = DefaultToolRegistry()
 
-    private val llmClient = HttpLlmClient()
+    private val llmClient = HttpLlmClient(PasswordSafeCredentialResolver())
     private val renderer = SimpleTemplateRenderer()
     private val parser = YamlPipelineParser()
     private val validator = PipelineValidator()
