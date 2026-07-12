@@ -147,6 +147,24 @@ Full spec: [`docs/pipeline-yaml-spec.md`](docs/pipeline-yaml-spec.md).
 
 **Compatibility:** IntelliJ IDEA 2025.2+ (and other IntelliJ Platform IDEs on the same build).
 
+## CLI
+
+Run the same pipelines from the terminal — no IDE required. `flai-cli` is a non-interactive runner packaged as a fat JAR (Java 21+), built for CI.
+
+```bash
+# grab it from the latest release, or build from source:
+./gradlew :cli:fatJar   # -> cli/build/libs/flai-cli-<version>.jar
+
+java -jar flai-cli.jar run .flai/code-review.flai.yaml --input file_path=src/Main.kt
+java -jar flai-cli.jar run .flai/code-review.flai.yaml --inputs-json inputs.json --format json --quiet
+```
+
+- **Same YAML, same gates.** The only IDE-only piece is the PSI symbol search tool.
+- **CI-friendly.** Final outputs on stdout (`text` or `json`), event log on stderr, meaningful exit codes.
+- **Credentials via env vars.** No PasswordSafe in the terminal — `credentialId: anthropic-key` resolves from `FLAI_CREDENTIAL_ANTHROPIC_KEY`.
+
+Full reference (options, exit codes, GitHub Actions example): [`docs/cli.md`](docs/cli.md).
+
 ## Architecture
 
 Hexagonal — pure-Kotlin domain, IntelliJ-aware infrastructure, Swing UI.
@@ -167,11 +185,12 @@ Adding a new gate type: sealed subclass in `Gate.kt` → `DefaultXxxGateExecutor
 ./gradlew test           # run tests
 ./gradlew buildPlugin    # produce distributable ZIP
 ./gradlew verifyPlugin   # check IDE compatibility
+./gradlew :cli:fatJar    # build the CLI fat JAR
 ```
 
 ## Roadmap
 
-- [ ] **CLI tool** — run `.flai.yaml` / `.flai` pipelines from the terminal, outside the IDE. Same YAML, same gate types, no IntelliJ required. CI-friendly.
+- [x] **CLI tool** — run `.flai.yaml` / `.flai` pipelines from the terminal, outside the IDE. Same YAML, same gate types, no IntelliJ required. CI-friendly. See [`docs/cli.md`](docs/cli.md).
 - [ ] **MCP server** — expose flai pipelines as MCP tools so any MCP-compatible host (Claude Desktop, other agents) can invoke them directly.
 - [ ] **HTTP gate** — make arbitrary HTTP requests (GET/POST/etc.) from a pipeline; response body and status stored in context.
 - [ ] **Vector/RAG gate** — embed text and query a vector store; inject retrieved chunks into context for downstream LLM gates.
@@ -180,3 +199,4 @@ Adding a new gate type: sealed subclass in `Gate.kt` → `DefaultXxxGateExecutor
 ## Documentation
 
 - [Pipeline YAML specification](docs/pipeline-yaml-spec.md) — every gate, every field, every example.
+- [CLI reference](docs/cli.md) — options, inputs, credentials, exit codes, CI usage.
