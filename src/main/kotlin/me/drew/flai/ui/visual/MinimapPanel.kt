@@ -13,6 +13,40 @@ private const val MINIMAP_H = 100
 private const val MINIMAP_NODE_W = 140
 private const val MINIMAP_NODE_H = 60
 
+internal data class MinimapProjection(
+    val scale: Double,
+    val offsetX: Double,
+    val offsetY: Double,
+    val minX: Double,
+    val minY: Double,
+) {
+    fun toMiniX(modelX: Double): Double = offsetX + (modelX - minX) * scale
+
+    fun toMiniY(modelY: Double): Double = offsetY + (modelY - minY) * scale
+}
+
+internal fun computeMinimapProjection(
+    contentBounds: Rectangle2D,
+    viewportBounds: Rectangle2D?,
+    width: Int,
+    height: Int,
+    padding: Double,
+): MinimapProjection {
+    val union = Rectangle2D.Double()
+    union.setRect(contentBounds)
+    if (viewportBounds != null) {
+        Rectangle2D.union(union, viewportBounds, union)
+    }
+    val boundsW = union.width.coerceAtLeast(1.0)
+    val boundsH = union.height.coerceAtLeast(1.0)
+    val scaleX = (width - padding * 2) / boundsW
+    val scaleY = (height - padding * 2) / boundsH
+    val scale = minOf(scaleX, scaleY)
+    val offsetX = padding + (width - padding * 2 - boundsW * scale) / 2.0
+    val offsetY = padding + (height - padding * 2 - boundsH * scale) / 2.0
+    return MinimapProjection(scale, offsetX, offsetY, union.x, union.y)
+}
+
 class MinimapPanel(
     private val model: VisualPipelineModel,
     private val getViewTransform: () -> AffineTransform,
@@ -53,19 +87,15 @@ class MinimapPanel(
         val minY = model.nodes.minOf { it.y }.toDouble()
         val maxX = model.nodes.maxOf { it.x + MINIMAP_NODE_W }.toDouble()
         val maxY = model.nodes.maxOf { it.y + MINIMAP_NODE_H }.toDouble()
-        val contentW = (maxX - minX).coerceAtLeast(1.0)
-        val contentH = (maxY - minY).coerceAtLeast(1.0)
+        val contentBounds = Rectangle2D.Double(minX, minY, maxX - minX, maxY - minY)
 
-        val padding = 6.0
-        val scaleX = (width - padding * 2) / contentW
-        val scaleY = (height - padding * 2) / contentH
-        val scale = minOf(scaleX, scaleY)
+        // Viewport in model coords — include it in bounds so the indicator always fits
+        val viewportBounds = computeViewportModelBounds()
+        val projection = computeMinimapProjection(contentBounds, viewportBounds, width, height, 6.0)
 
-        val offsetX = padding + (width - padding * 2 - contentW * scale) / 2.0
-        val offsetY = padding + (height - padding * 2 - contentH * scale) / 2.0
-
-        fun toMiniX(modelX: Double) = (offsetX + (modelX - minX) * scale).toFloat()
-        fun toMiniY(modelY: Double) = (offsetY + (modelY - minY) * scale).toFloat()
+        fun toMiniX(modelX: Double) = projection.toMiniX(modelX).toFloat()
+        fun toMiniY(modelY: Double) = projection.toMiniY(modelY).toFloat()
+        val scale = projection.scale
 
         // Draw edges
         g2.stroke = BasicStroke(0.8f)
@@ -92,25 +122,33 @@ class MinimapPanel(
         }
 
         // Draw viewport indicator
-        val viewTransform = getViewTransform()
-        val canvasSize = getCanvasSize()
-        try {
-            val inv = viewTransform.createInverse()
-            val topLeft = Point2D.Double()
-            val bottomRight = Point2D.Double()
-            inv.transform(Point2D.Double(0.0, 0.0), topLeft)
-            inv.transform(Point2D.Double(canvasSize.width.toDouble(), canvasSize.height.toDouble()), bottomRight)
-            val vx = toMiniX(topLeft.x)
-            val vy = toMiniY(topLeft.y)
-            val vw = toMiniX(bottomRight.x) - vx
-            val vh = toMiniY(bottomRight.y) - vy
+        if (viewportBounds != null) {
+            val vx = toMiniX(viewportBounds.x)
+            val vy = toMiniY(viewportBounds.y)
+            val vw = toMiniX(viewportBounds.x + viewportBounds.width) - vx
+            val vh = toMiniY(viewportBounds.y + viewportBounds.height) - vy
             g2.color = JBColor(Color(55, 120, 255, 50), Color(90, 150, 255, 50))
             g2.fill(Rectangle2D.Float(vx, vy, vw, vh))
             g2.color = JBColor(Color(55, 120, 255, 160), Color(90, 150, 255, 160))
             g2.stroke = BasicStroke(1f)
             g2.draw(Rectangle2D.Float(vx, vy, vw, vh))
+        }
+    }
+
+    private fun computeViewportModelBounds(): Rectangle2D.Double? {
+        val canvasSize = getCanvasSize()
+        if (canvasSize.width <= 0 || canvasSize.height <= 0) {
+            return null
+        }
+        return try {
+            val inv = getViewTransform().createInverse()
+            val topLeft = Point2D.Double()
+            val bottomRight = Point2D.Double()
+            inv.transform(Point2D.Double(0.0, 0.0), topLeft)
+            inv.transform(Point2D.Double(canvasSize.width.toDouble(), canvasSize.height.toDouble()), bottomRight)
+            Rectangle2D.Double(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y)
         } catch (_: java.awt.geom.NoninvertibleTransformException) {
-            // Skip viewport indicator if transform is not invertible
+            null
         }
     }
 }
