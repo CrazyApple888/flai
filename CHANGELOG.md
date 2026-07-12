@@ -3,6 +3,11 @@
 # flai Changelog
 
 ## [Unreleased]
+### Added
+- `flai-cli`: non-interactive command-line pipeline runner for CI (`java -jar flai-cli.jar run <pipeline> --input key=value`), published as a fat JAR on GitHub releases. See `docs/cli.md`.
+
+### Changed
+- Internal restructuring into three Gradle modules: `core` (pure domain + executors), the IntelliJ plugin, and `cli`. Plugin release workflow now republishes the plugin only when plugin-affecting code changed.
 
 ## [0.3.0]
 ### Added
