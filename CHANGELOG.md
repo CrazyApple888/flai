@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.3.0]
+### Added
+- Plugin icons: dedicated icons for the `.flai.yaml` file type, the flai tool window (light and dark variants), and pipeline/tool entries in the pipeline list.
+
+### Fixed
+- Gate status color line no longer bleeds over the properties panel — canvas painting is clipped to the canvas bounds.
+
 ## [0.2.0]
 ### Added
 - Fault-tolerant gates: opt-in per-gate `faultTolerant` flag. When a fault-tolerant gate fails, the pipeline continues along its normal outgoing edges instead of aborting. Disabled by default, so existing pipelines are unchanged.
