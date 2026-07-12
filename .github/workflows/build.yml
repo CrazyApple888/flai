@@ -79,11 +79,21 @@ jobs:
       - name: Build CLI
         run: ./gradlew :cli:fatJar
 
+      # Prepare CLI artifact name from the versioned JAR filename
+      - name: Prepare CLI Artifact
+        id: cli_artifact
+        shell: bash
+        run: |
+          cd ${{ github.workspace }}/cli/build/libs
+          FILENAME=`ls flai-cli-*.jar`
+
+          echo "filename=${FILENAME:0:-4}" >> $GITHUB_OUTPUT
+
       # Store the CLI JAR as an artifact
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v6
         with:
-          name: flai-cli
+          name: ${{ steps.cli_artifact.outputs.filename }}
           path: ./cli/build/libs/flai-cli-*.jar
 
   # Run tests and upload a code coverage report
