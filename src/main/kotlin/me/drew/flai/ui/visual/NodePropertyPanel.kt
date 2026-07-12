@@ -5,11 +5,11 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import me.drew.flai.domain.model.*
-import me.drew.flai.infrastructure.tool.IdeToolRegistry
+import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import java.awt.*
 import javax.swing.*
 
-class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(BorderLayout()) {
+class NodePropertyPanel(private val toolRegistry: DefaultToolRegistry) : JPanel(BorderLayout()) {
 
     private var isEditable: Boolean = true
 
@@ -22,7 +22,23 @@ class NodePropertyPanel(private val toolRegistry: IdeToolRegistry) : JPanel(Bord
     private var currentModel: VisualPipelineModel? = null
     private var canvas: PipelineCanvas? = null
 
-    private val innerPanel = JPanel()
+    private val innerPanel = object : JPanel(), Scrollable {
+        override fun getPreferredScrollableViewportSize(): Dimension = preferredSize
+
+        override fun getScrollableUnitIncrement(visibleRect: Rectangle, orientation: Int, direction: Int): Int = JBUI.scale(16)
+
+        override fun getScrollableBlockIncrement(visibleRect: Rectangle, orientation: Int, direction: Int): Int {
+            return if (orientation == SwingConstants.VERTICAL) {
+                visibleRect.height
+            } else {
+                visibleRect.width
+            }
+        }
+
+        override fun getScrollableTracksViewportWidth(): Boolean = true
+
+        override fun getScrollableTracksViewportHeight(): Boolean = false
+    }
     private val scrollPane = JBScrollPane(innerPanel)
     private val northWrapper = JPanel(BorderLayout())
     private val editableComponents = mutableListOf<JComponent>()

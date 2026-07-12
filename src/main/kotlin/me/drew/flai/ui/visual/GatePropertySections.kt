@@ -5,7 +5,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.JBUI
 import me.drew.flai.domain.model.*
-import me.drew.flai.infrastructure.tool.IdeToolRegistry
+import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import java.awt.*
 import java.awt.Component.LEFT_ALIGNMENT
 import javax.swing.*
@@ -20,7 +20,7 @@ data class SectionResult(
 )
 
 class GatePropertySections(
-    private val toolRegistry: IdeToolRegistry,
+    private val toolRegistry: DefaultToolRegistry,
     private val onGateUpdated: (nodeSeq: Int, gate: Gate) -> Unit,
     private val onRepaint: () -> Unit,
     private val onRefreshPanel: () -> Unit,
@@ -770,14 +770,15 @@ class GatePropertySections(
     fun labeledRow(labelText: String, field: JComponent): JPanel {
         return JPanel(BorderLayout(JBUI.scale(4), 0)).apply {
             isOpaque = false
+            val rowHeight = maxOf(JBUI.scale(28), field.preferredSize.height)
             val lbl = JBLabel("$labelText:").apply {
-                preferredSize = Dimension(JBUI.scale(90), JBUI.scale(28))
+                preferredSize = Dimension(JBUI.scale(90), rowHeight)
                 font = font.deriveFont(Font.PLAIN, JBUI.scale(11).toFloat())
                 foreground = UIManager.getColor("Label.disabledForeground")
             }
             add(lbl, BorderLayout.WEST)
             add(field, BorderLayout.CENTER)
-            maximumSize = Dimension(Int.MAX_VALUE, JBUI.scale(28))
+            maximumSize = Dimension(Int.MAX_VALUE, rowHeight)
         }
     }
 

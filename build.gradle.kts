@@ -17,6 +17,13 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":core")) {
+        exclude(group = "org.jetbrains.kotlin")
+        exclude(group = "org.jetbrains.kotlinx")
+        exclude(group = "com.google.code.gson")
+        exclude(group = "org.yaml")
+    }
+
     testImplementation("junit:junit:4.13.2")
 
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html

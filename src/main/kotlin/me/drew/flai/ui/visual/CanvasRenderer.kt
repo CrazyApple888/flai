@@ -120,10 +120,22 @@ internal class CanvasRenderer {
 
         val clip = g2.clip
         // clip() intersects with the existing clip; setClip would replace it and
-        // allow painting outside the component bounds
-        g2.clip(Rectangle(x, y, 4, NODE_HEIGHT))
+        // allow painting outside the component bounds. Decorations (stripe, entry
+        // badge, LLM star) are clipped to the body so they never escape the
+        // rounded corners; the border stroke below must stay unclipped because it
+        // straddles the shape path.
+        g2.clip(shape)
         g2.color = accent
-        g2.fillRoundRect(x, y, 4, NODE_HEIGHT, ARC, ARC)
+        g2.fillRect(x, y, 4, NODE_HEIGHT)
+        if (isEntry) {
+            val triX = intArrayOf(x, x + 12, x)
+            val triY = intArrayOf(y, y, y + 12)
+            g2.color = JBColor(Color(200, 100, 0), Color(255, 170, 40))
+            g2.fillPolygon(triX, triY, 3)
+        }
+        if (node.gate is LlmGate) {
+            drawLlmStar(g2, x + NODE_WIDTH - 10, y + 10, 6)
+        }
         g2.clip = clip
 
         g2.stroke = if (isSelected) BasicStroke(2.5f) else BasicStroke(1f)
@@ -135,13 +147,6 @@ internal class CanvasRenderer {
         }
         g2.draw(shape)
         g2.stroke = BasicStroke(1f)
-
-        if (isEntry) {
-            val triX = intArrayOf(x + 2, x + 10, x + 2)
-            val triY = intArrayOf(y + 2, y + 2, y + 10)
-            g2.color = JBColor(Color(200, 100, 0), Color(255, 170, 40))
-            g2.fillPolygon(triX, triY, 3)
-        }
 
         val icon = gateIcon(node.gate)
         val iconX = x + 8
@@ -164,10 +169,6 @@ internal class CanvasRenderer {
         }
         val textY = y + (NODE_HEIGHT + fm.ascent - fm.descent) / 2
         g2.drawString(displayLabel, textStartX, textY)
-
-        if (node.gate is LlmGate) {
-            drawLlmStar(g2, x + NODE_WIDTH - 10, y + 10, 6)
-        }
 
         val status = state.executionStatus[node.gateId]
         if (status != null) {

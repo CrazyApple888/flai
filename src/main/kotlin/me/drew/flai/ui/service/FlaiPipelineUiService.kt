@@ -18,13 +18,14 @@ import me.drew.flai.domain.model.InputGate
 import me.drew.flai.domain.model.PipelineId
 import me.drew.flai.domain.model.TraceStatus
 import me.drew.flai.domain.service.ExecutionEvent
+import me.drew.flai.infrastructure.credential.PasswordSafeCredentialResolver
 import me.drew.flai.infrastructure.executor.*
 import me.drew.flai.infrastructure.llm.HttpLlmClient
 import me.drew.flai.infrastructure.pipeline.PipelineValidator
 import me.drew.flai.infrastructure.pipeline.YamlPipelineParser
 import me.drew.flai.infrastructure.pipeline.YamlPipelineRepository
 import me.drew.flai.infrastructure.template.SimpleTemplateRenderer
-import me.drew.flai.infrastructure.tool.IdeToolRegistry
+import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import me.drew.flai.ui.model.*
 import me.drew.flai.usecase.RunPipelineUseCase
 import java.io.File
@@ -63,9 +64,9 @@ internal fun traceStatusToGateStatus(status: TraceStatus): GateStatus = when (st
 class FlaiPipelineUiService(private val project: Project) : Disposable {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val toolRegistry = IdeToolRegistry()
+    val toolRegistry = DefaultToolRegistry()
 
-    private val llmClient = HttpLlmClient()
+    private val llmClient = HttpLlmClient(PasswordSafeCredentialResolver())
     private val renderer = SimpleTemplateRenderer()
     private val parser = YamlPipelineParser()
     private val validator = PipelineValidator()

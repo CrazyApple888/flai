@@ -85,16 +85,16 @@ class FlaiPipelineFileEditor(
         toolTipText = "Cancel running pipeline"
     }
 
-    private val zoomInBtn = JButton("+").apply {
+    private val zoomInBtn = RoundedButton("+").apply {
         toolTipText = "Zoom in"
     }
-    private val zoomOutBtn = JButton("–").apply {
+    private val zoomOutBtn = RoundedButton("–").apply {
         toolTipText = "Zoom out"
     }
-    private val resetZoomBtn = JButton("1:1").apply {
+    private val resetZoomBtn = RoundedButton("1:1").apply {
         toolTipText = "Reset zoom"
     }
-    private val lockZoomBtn = JToggleButton("🔓").apply {
+    private val lockZoomBtn = RoundedToggleButton("🔓").apply {
         toolTipText = "Lock zoom"
     }
 
@@ -219,13 +219,17 @@ class FlaiPipelineFileEditor(
         // Wrap canvas in JLayeredPane so overlay controls can sit on top
         val canvasLayer = JLayeredPane()
         canvas.setBounds(0, 0, 800, 600)
-        canvasLayer.add(canvas, JLayeredPane.DEFAULT_LAYER)
+        // Kotlin resolves add(Component, Int) to the index overload, not the layer
+        // constraint — use setLayer explicitly so the overlay paints above the canvas
+        canvasLayer.add(canvas)
+        canvasLayer.setLayer(canvas, JLayeredPane.DEFAULT_LAYER)
 
         // Transparent overlay for zoom buttons and minimap
         val overlay = JPanel(null).apply {
             isOpaque = false
         }
-        canvasLayer.add(overlay, JLayeredPane.PALETTE_LAYER)
+        canvasLayer.add(overlay)
+        canvasLayer.setLayer(overlay, JLayeredPane.PALETTE_LAYER)
 
         // Wire up zoom control buttons
         zoomInBtn.addActionListener {
@@ -266,9 +270,8 @@ class FlaiPipelineFileEditor(
             val w = canvasLayer.width
             val h = canvasLayer.height
             overlay.setBounds(0, 0, w, h)
-            val zw = 40
-            val zh = 140
-            zoomPanel.setBounds(w - zw - 6, 8, zw, zh)
+            val zoomSize = zoomPanel.preferredSize
+            zoomPanel.setBounds(w - zoomSize.width - 6, 8, zoomSize.width, zoomSize.height)
             minimapPanel.setBounds(6, h - minimapPanel.preferredSize.height - 6,
                 minimapPanel.preferredSize.width, minimapPanel.preferredSize.height)
         }
