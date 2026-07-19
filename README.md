@@ -191,6 +191,7 @@ Adding a new gate type: sealed subclass in `Gate.kt` → `DefaultXxxGateExecutor
 ## Roadmap
 
 - [x] **CLI tool** — run `.flai.yaml` / `.flai` pipelines from the terminal, outside the IDE. Same YAML, same gate types, no IntelliJ required. CI-friendly. See [`docs/cli.md`](docs/cli.md).
+- [ ] **Tool calling** — let LLM gates call registered tools (function calling): the model decides which tool to invoke, the executor runs it and feeds results back until a final answer.
 - [ ] **MCP server** — expose flai pipelines as MCP tools so any MCP-compatible host (Claude Desktop, other agents) can invoke them directly.
 - [ ] **HTTP gate** — make arbitrary HTTP requests (GET/POST/etc.) from a pipeline; response body and status stored in context.
 - [ ] **Vector/RAG gate** — embed text and query a vector store; inject retrieved chunks into context for downstream LLM gates.
