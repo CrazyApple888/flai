@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [0.5.0]
+### Changed
+- Refreshed plugin branding: new plugin icon (`pluginIcon.svg`) plus updated `.flai.yaml` file type and tool window icons (light and dark variants).
+- README now documents the `flai-cli` non-interactive command-line runner.
+
+### Dependencies
+- Bump `org.jetbrains.intellij.platform` Gradle plugin from 2.16.0 to 2.18.0.
+- Bump Gradle wrapper from 9.4.1 to 9.6.1.
+
 ## [0.4.0]
 ### Added
 - `flai-cli`: non-interactive command-line pipeline runner for CI (`java -jar flai-cli.jar run <pipeline> --input key=value`), published as a fat JAR on GitHub releases. See `docs/cli.md`.
