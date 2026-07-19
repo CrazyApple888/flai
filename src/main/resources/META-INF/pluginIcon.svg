@@ -1,0 +1,20 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="flaiG" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FF7A45" offset="0"></stop>
+            <stop offset=".52" stop-color="#E23A78"></stop>
+            <stop offset="1" stop-color="#8B3DFF"></stop>
+        </linearGradient>
+    </defs>
+    <rect x="4" y="4" width="32" height="32" rx="8" fill="url(#flaiG)"></rect>
+    <g stroke="#fff" stroke-width="2.1" stroke-linecap="round" fill="none">
+        <path d="M16 20h3.2"></path>
+        <path d="M19.2 20c3 0 3.2-7.5 5.8-7.5"></path>
+        <path d="M19.2 20c3 0 3.2 7.5 5.8 7.5"></path>
+    </g>
+    <g fill="#fff">
+        <rect x="8" y="16" width="8" height="8" rx="2.6"></rect>
+        <rect x="24" y="8.5" width="8" height="8" rx="2.6"></rect>
+        <rect x="24" y="23.5" width="8" height="8" rx="2.6"></rect>
+    </g>
+</svg>
