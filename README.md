@@ -147,6 +147,12 @@ Full spec: [`docs/pipeline-yaml-spec.md`](docs/pipeline-yaml-spec.md).
 
 **Compatibility:** IntelliJ IDEA 2025.2+ (and other IntelliJ Platform IDEs on the same build).
 
+## Error logs
+
+- **Pipeline runs:** open the **Flai Pipelines** tool window and check the execution log for gate failures and error messages.
+- **Plugin errors:** open the IDE log from **Help → Show Log in Finder/Explorer** and inspect `idea.log`. The default log directory is `~/Library/Logs/JetBrains/<product><version>` on macOS, `~/.cache/JetBrains/<product><version>/log` on Linux, and `%LOCALAPPDATA%\JetBrains\<product><version>\log` on Windows.
+- **CLI runs:** execution events and errors are written to standard error. Redirect them to a file with `2>flai-error.log`; `--quiet` suppresses normal execution events but still reports errors.
+
 ## CLI
 
 Run the same pipelines from the terminal — no IDE required. `flai-cli` is a non-interactive runner packaged as a fat JAR (Java 21+), built for CI.
