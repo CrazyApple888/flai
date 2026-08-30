@@ -76,6 +76,15 @@ class YamlPipelineSerializer {
                         sb.appendLine("      - ${escapeScalar(skill)}")
                     }
                 }
+                if (gate.tools.isNotEmpty()) {
+                    sb.appendLine("    tools:")
+                    for (tool in gate.tools) {
+                        sb.appendLine("      - ${escapeScalar(tool)}")
+                    }
+                }
+                if (gate.maxToolRounds != 8) {
+                    sb.appendLine("    maxToolRounds: ${gate.maxToolRounds}")
+                }
                 if (gate.inputMapping.isNotEmpty()) {
                     sb.appendLine("    inputMapping:")
                     for ((k, v) in gate.inputMapping) {
@@ -91,6 +100,14 @@ class YamlPipelineSerializer {
                 }
                 sb.appendLine("    endpoint:")
                 sb.appendLine("      url: ${escapeScalar(gate.endpointConfig.url)}")
+                val inferredProvider = if (gate.endpointConfig.url.contains("anthropic.com/v1/messages", ignoreCase = true)) {
+                    LlmProvider.ANTHROPIC
+                } else {
+                    LlmProvider.OPENAI
+                }
+                if (gate.endpointConfig.provider != LlmProvider.OPENAI || gate.endpointConfig.provider != inferredProvider) {
+                    sb.appendLine("      provider: ${gate.endpointConfig.provider.name.lowercase()}")
+                }
                 if (gate.endpointConfig.credentialId.isNotBlank()) {
                     sb.appendLine("      credentialId: ${escapeScalar(gate.endpointConfig.credentialId)}")
                 }

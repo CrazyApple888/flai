@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import me.drew.flai.domain.model.ExecutionContext
 import me.drew.flai.domain.model.Pipeline
 import me.drew.flai.domain.model.TraceEntry
+import me.drew.flai.domain.executor.GateExecutionReport
 
 interface PipelineExecutor {
     fun execute(pipeline: Pipeline, inputs: Map<String, Any?> = emptyMap()): Flow<ExecutionEvent>
@@ -12,6 +13,7 @@ interface PipelineExecutor {
 sealed class ExecutionEvent {
     data class GateStarted(val gateId: String, val gateLabel: String) : ExecutionEvent()
     data class GateCompleted(val entry: TraceEntry) : ExecutionEvent()
+    data class ToolCompleted(val gateId: String, val report: GateExecutionReport) : ExecutionEvent()
     data class PipelineCompleted(val context: ExecutionContext, val outputs: Map<String, Any?> = emptyMap()) : ExecutionEvent()
     data class PipelineFailed(val error: Throwable, val context: ExecutionContext) : ExecutionEvent()
 }

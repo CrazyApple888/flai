@@ -18,8 +18,12 @@ class DefaultToolGateExecutor(private val toolRegistry: ToolRegistry) : GateExec
             )
         return try {
             val inputs = context.resolve(gate.inputMapping)
-            val outputs = tool.invoke(inputs, context)
-            GateResult.Success(outputs)
+            val result = tool.invoke(inputs, context)
+            if (result.isError) {
+                GateResult.Failure(IllegalStateException(result.outputs["error"]?.toString() ?: "Tool '${tool.name}' failed"), retryable = false)
+            } else {
+                GateResult.Success(result.outputs)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -11,5 +11,24 @@ interface ToolRegistry {
 interface Tool {
     val name: String
     val description: String
-    suspend fun invoke(inputs: Map<String, Any?>, context: ExecutionContext): Map<String, Any?>
+    val inputSchema: ToolInputSchema
+    suspend fun invoke(inputs: Map<String, Any?>, context: ExecutionContext): ToolResult
 }
+
+data class ToolResult(
+    val outputs: Map<String, Any?>,
+    val isError: Boolean = false,
+)
+
+data class ToolInputSchema(
+    val properties: Map<String, ToolSchemaProperty>,
+    val required: List<String> = emptyList(),
+)
+
+data class ToolSchemaProperty(
+    val type: ToolSchemaType,
+    val description: String = "",
+    val items: ToolSchemaProperty? = null,
+)
+
+enum class ToolSchemaType { STRING, NUMBER, INTEGER, BOOLEAN, OBJECT, ARRAY }

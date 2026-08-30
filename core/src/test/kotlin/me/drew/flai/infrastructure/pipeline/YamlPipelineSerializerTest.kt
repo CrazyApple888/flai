@@ -125,6 +125,50 @@ class YamlPipelineSerializerTest {
     }
 
     @Test
+    fun `round-trip LlmGate preserves non-default tool settings`() {
+        val gate = LlmGate(
+            id = GateId("llm1"),
+            label = "LLM",
+            promptTemplate = "Do it",
+            endpointConfig = LlmEndpointConfig(
+                url = "https://api.anthropic.com/v1/messages",
+                credentialId = "cred",
+                model = "claude",
+                provider = LlmProvider.ANTHROPIC,
+            ),
+            tools = listOf("ide.readFile"),
+            maxToolRounds = 3,
+        )
+        val parsed = roundTrip(minimalPipeline(mapOf(GateId("llm1") to gate))).gates[GateId("llm1")] as LlmGate
+
+        assertEquals(gate.endpointConfig.provider, parsed.endpointConfig.provider)
+        assertEquals(gate.tools, parsed.tools)
+        assertEquals(gate.maxToolRounds, parsed.maxToolRounds)
+    }
+
+    @Test
+    fun `legacy Anthropic endpoint without provider infers Anthropic`() {
+        val yaml = """
+            id: test
+            name: Test
+            entry: llm
+            gates:
+              llm:
+                type: llm
+                promptTemplate: hello
+                endpoint:
+                  url: https://api.anthropic.com/v1/messages
+                  credentialId: key
+                  model: claude
+            edges: []
+        """.trimIndent()
+
+        val parsed = parser.parse(yaml).gates[GateId("llm")] as LlmGate
+
+        assertEquals(LlmProvider.ANTHROPIC, parsed.endpointConfig.provider)
+    }
+
+    @Test
     fun `round-trip LlmGate default outputMapping omitted in YAML`() {
         val gate = LlmGate(
             id = GateId("llm1"),

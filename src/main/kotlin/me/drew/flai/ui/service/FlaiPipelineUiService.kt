@@ -81,7 +81,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         listOf(
             DefaultInputGateExecutor(),
             DefaultOutputGateExecutor(),
-            DefaultLlmGateExecutor(llmClient, renderer, skillLoader),
+            DefaultLlmGateExecutor(llmClient, toolRegistry, renderer, skillLoader),
             DefaultLogicGateExecutor(),
             DefaultToolGateExecutor(toolRegistry),
             DefaultBashGateExecutor(projectBasePath, renderer),
@@ -232,6 +232,16 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
                         row.copy(status = status, durationMs = entry.durationMs, message = entry.message)
                     else row
                 }
+            }
+
+            is ExecutionEvent.ToolCompleted -> {
+                _logRows.value += GateRow(
+                    gateName = "Tool ${event.report.toolName}",
+                    gateId = event.gateId,
+                    status = if (event.report.succeeded) GateStatus.SUCCESS else GateStatus.FAILURE,
+                    durationMs = event.report.durationMs,
+                    message = "round ${event.report.round}",
+                )
             }
 
             is ExecutionEvent.PipelineCompleted -> {
