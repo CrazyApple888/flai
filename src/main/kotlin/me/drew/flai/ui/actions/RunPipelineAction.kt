@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.wm.ToolWindowManager
+import me.drew.flai.infrastructure.pipeline.isPipelineFileName
 import me.drew.flai.ui.editor.FlaiIcons
 import me.drew.flai.ui.service.FlaiPipelineUiService
 
@@ -14,7 +15,7 @@ class RunPipelineAction : AnAction("Run Pipeline", "Run the selected flai pipeli
     override fun update(e: AnActionEvent) {
         val file = e.getData(CommonDataKeys.VIRTUAL_FILE)
         e.presentation.isEnabledAndVisible = e.project != null &&
-            file != null && file.name.endsWith(".flai.yaml")
+            file != null && isPipelineFileName(file.name)
     }
 
     override fun actionPerformed(e: AnActionEvent) {

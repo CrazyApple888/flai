@@ -21,7 +21,9 @@ import me.drew.flai.ui.model.GateStatus
 import me.drew.flai.ui.service.FlaiPipelineUiService
 import me.drew.flai.ui.util.coroutineScope
 import java.awt.BorderLayout
+import java.awt.Component
 import java.awt.Font
+import java.awt.Graphics
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.*
@@ -113,6 +115,7 @@ class ExecutionLogPanel(
             selected: Boolean,
             hasFocus: Boolean,
         ) {
+            border = JBUI.Borders.empty()
             when (row.status) {
                 GateStatus.OUTPUT -> {
                     icon = AllIcons.Nodes.Variable
@@ -145,6 +148,22 @@ class ExecutionLogPanel(
                     }
                 }
             }
+            if (row.isNested && icon != null) {
+                icon = IndentedIcon(icon, JBUI.scale(16))
+            }
+        }
+    }
+
+    private class IndentedIcon(
+        private val delegate: Icon,
+        private val indentation: Int,
+    ) : Icon {
+        override fun getIconWidth(): Int = delegate.iconWidth + indentation
+
+        override fun getIconHeight(): Int = delegate.iconHeight
+
+        override fun paintIcon(component: Component?, graphics: Graphics, x: Int, y: Int) {
+            delegate.paintIcon(component, graphics, x + indentation, y)
         }
     }
 }

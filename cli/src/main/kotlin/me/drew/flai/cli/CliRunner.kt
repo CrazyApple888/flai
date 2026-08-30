@@ -65,7 +65,7 @@ class CliRunner(
             listOf(
                 DefaultInputGateExecutor(),
                 DefaultOutputGateExecutor(),
-                DefaultLlmGateExecutor(llmClient, renderer, skillLoader),
+                DefaultLlmGateExecutor(llmClient, toolRegistry, renderer, skillLoader),
                 DefaultLogicGateExecutor(),
                 DefaultToolGateExecutor(toolRegistry),
                 DefaultBashGateExecutor(workdir.path, renderer),
@@ -95,6 +95,10 @@ class CliRunner(
                     }
                     val message = entry.message?.let { ": $it" } ?: ""
                     logEvent(options, "  ${entry.gateLabel} [$marker] (${entry.durationMs}ms)$message")
+                }
+                is ExecutionEvent.ToolCompleted -> {
+                    val status = if (event.report.succeeded) "ok" else "failed"
+                    logEvent(options, "  tool ${event.report.toolName} [${event.report.round}, $status] (${event.report.durationMs}ms)")
                 }
                 is ExecutionEvent.PipelineCompleted -> {
                     printOutputs(options, event.outputs)

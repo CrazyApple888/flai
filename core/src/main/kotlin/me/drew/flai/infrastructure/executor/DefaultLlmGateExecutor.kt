@@ -1,6 +1,8 @@
 package me.drew.flai.infrastructure.executor
 
+import com.google.gson.Gson
 import kotlinx.coroutines.CancellationException
+import me.drew.flai.domain.executor.GateExecutionReport
 import me.drew.flai.domain.executor.GateExecutor
 import me.drew.flai.domain.model.ExecutionContext
 import me.drew.flai.domain.model.Gate
@@ -8,23 +10,30 @@ import me.drew.flai.domain.model.GateResult
 import me.drew.flai.domain.model.LlmGate
 import me.drew.flai.domain.port.LlmClient
 import me.drew.flai.domain.port.TemplateRenderer
+import me.drew.flai.domain.port.ToolRegistry
 
 class DefaultLlmGateExecutor(
-    private val llmClient: LlmClient,
+    llmClient: LlmClient,
+    toolRegistry: ToolRegistry,
     private val renderer: TemplateRenderer,
     private val skillLoader: SkillLoader,
+    gson: Gson = Gson(),
+    private val callLoop: LlmToolCallLoop = LlmToolCallLoop(llmClient, toolRegistry, gson),
 ) : GateExecutor<LlmGate> {
     override fun canHandle(gate: Gate) = gate is LlmGate
 
     override suspend fun execute(gate: LlmGate, context: ExecutionContext): GateResult {
+        return execute(gate, context) { }
+    }
+
+    override suspend fun execute(
+        gate: LlmGate,
+        context: ExecutionContext,
+        report: suspend (GateExecutionReport) -> Unit,
+    ): GateResult {
         return try {
-            val skillBodies: List<String> = skillLoader.load(gate.skills)
-            val renderedTemplate: String = renderer.render(gate.promptTemplate, context.snapshot())
-            val mergedPrompt: String = buildMergedPrompt(skillBodies, renderedTemplate)
-            val resolvedApiKey: String? = gate.endpointConfig.apiKeyVar
-                ?.let { varName -> context.get(varName)?.toString() }
-            val response = llmClient.complete(gate.endpointConfig, mergedPrompt, resolvedApiKey)
-            GateResult.Success(outputs = mapOf("response" to response))
+            val prompt = loadAndRenderPrompt(gate, context)
+            GateResult.Success(callLoop.run(gate, prompt, context, report))
         } catch (e: CancellationException) {
             throw e
         } catch (e: SkillLoadException) {
@@ -34,12 +43,13 @@ class DefaultLlmGateExecutor(
         }
     }
 
-    private fun buildMergedPrompt(skillBodies: List<String>, renderedTemplate: String): String {
+    private suspend fun loadAndRenderPrompt(gate: LlmGate, context: ExecutionContext): String {
+        val skillBodies = skillLoader.load(gate.skills)
+        val template = renderer.render(gate.promptTemplate, context.snapshot())
         return if (skillBodies.isEmpty()) {
-            renderedTemplate
+            template
         } else {
-            val parts = skillBodies + if (renderedTemplate.isNotEmpty()) listOf(renderedTemplate) else emptyList()
-            parts.joinToString("\n\n")
+            (skillBodies + if (template.isNotEmpty()) listOf(template) else emptyList()).joinToString("\n\n")
         }
     }
 }

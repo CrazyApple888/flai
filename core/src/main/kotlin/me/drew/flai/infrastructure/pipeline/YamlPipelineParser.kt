@@ -82,6 +82,8 @@ class YamlPipelineParser {
                 inputMapping = parseStringMap(map["inputMapping"]),
                 outputMapping = parseStringMap(map["outputMapping"]).ifEmpty { mapOf("response" to "response") },
                 endpointConfig = parseEndpointConfig(id, map["endpoint"]),
+                tools = parseToolNames(id, map["tools"]),
+                maxToolRounds = parsePositiveInt(id, map["maxToolRounds"], "maxToolRounds") ?: 8,
                 faultTolerant = faultTolerant,
             )
             "logic" -> LogicGate(
@@ -245,13 +247,47 @@ class YamlPipelineParser {
         if (credentialId.isBlank() && apiKeyVar == null) {
             throw PipelineLoadException("Endpoint must have 'credentialId' or 'apiKeyVar'")
         }
+        val url = m["url"] as? String ?: throw PipelineLoadException("Endpoint missing 'url'")
         return LlmEndpointConfig(
-            url = m["url"] as? String ?: throw PipelineLoadException("Endpoint missing 'url'"),
+            url = url,
             credentialId = credentialId,
             model = m["model"] as? String ?: throw PipelineLoadException("Endpoint missing 'model'"),
             params = params,
             apiKeyVar = apiKeyVar,
+            provider = when ((m["provider"] as? String ?: inferLegacyProvider(url)).lowercase()) {
+                "openai" -> LlmProvider.OPENAI
+                "anthropic" -> LlmProvider.ANTHROPIC
+                else -> throw PipelineLoadException("Endpoint provider must be 'openai' or 'anthropic'")
+            },
         )
+    }
+
+    private fun inferLegacyProvider(url: String): String {
+        return if (url.contains("anthropic.com/v1/messages", ignoreCase = true)) {
+            "anthropic"
+        } else {
+            "openai"
+        }
+    }
+
+    private fun parseToolNames(gateId: GateId, obj: Any?): List<String> {
+        if (obj == null) {
+            return emptyList()
+        }
+        val values = obj as? List<*>
+            ?: throw PipelineLoadException("Gate '${gateId.value}': 'tools' must be a list of names")
+        return values.mapIndexed { index, value ->
+            val name = value as? String
+                ?: throw PipelineLoadException("Gate '${gateId.value}': 'tools[$index]' must be a string")
+            if (name.isBlank()) {
+                throw PipelineLoadException("Gate '${gateId.value}': 'tools[$index]' must not be blank")
+            }
+            name
+        }.also { names ->
+            if (names.distinct().size != names.size) {
+                throw PipelineLoadException("Gate '${gateId.value}': 'tools' must not contain duplicates")
+            }
+        }
     }
 
     @Suppress("UNCHECKED_CAST")

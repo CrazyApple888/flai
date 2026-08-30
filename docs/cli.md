@@ -1,8 +1,8 @@
 # flai CLI
 
 `flai-cli` is a non-interactive command-line runner for flai pipelines. It executes a
-`*.flai.yaml` pipeline file with provided inputs and exits with a machine-readable status,
-making it suitable for CI.
+pipeline file (`*.flai.yaml`, `*.flai.yml`, `*.flai`, `*.yaml`, or `*.yml`) with
+provided inputs and exits with a machine-readable status, making it suitable for CI.
 
 ## Get it
 
@@ -48,6 +48,7 @@ java -jar flai-cli.jar run .flai/review.flai.yaml --inputs-json inputs.json --fo
   one JSON object. Safe to pipe.
 - **stderr** — execution event log (gate start/completion, durations) and errors.
   Suppress events with `--quiet`.
+  LLM tool-call entries include only the tool name, round, status, and duration; arguments and results are redacted.
 
 ### Exit codes
 
@@ -82,8 +83,10 @@ Bash, read-file, write-file gates and relative tool paths resolve against the wo
 
 ## Tools
 
-Available tool-gate tools: `ide.readFile`, `ide.runCommand`. The PSI symbol search tool is
-IDE-only; a pipeline referencing it fails in the CLI with an unknown-tool error.
+Available tools for tool gates and LLM `tools` allowlists: `ide.readFile`, `ide.runCommand`.
+The PSI symbol search tool is IDE-only; unavailable allowlist entries are omitted from an LLM request.
+An LLM allowlist is an authorization boundary, particularly for `ide.runCommand`: declare only
+the tools a pipeline is intended to grant to the model.
 
 ## GitHub Actions example
 

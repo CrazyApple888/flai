@@ -24,6 +24,7 @@ import me.drew.flai.infrastructure.llm.HttpLlmClient
 import me.drew.flai.infrastructure.pipeline.PipelineValidator
 import me.drew.flai.infrastructure.pipeline.YamlPipelineParser
 import me.drew.flai.infrastructure.pipeline.YamlPipelineRepository
+import me.drew.flai.infrastructure.pipeline.isPipelineFileName
 import me.drew.flai.infrastructure.template.SimpleTemplateRenderer
 import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import me.drew.flai.ui.model.*
@@ -81,7 +82,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         listOf(
             DefaultInputGateExecutor(),
             DefaultOutputGateExecutor(),
-            DefaultLlmGateExecutor(llmClient, renderer, skillLoader),
+            DefaultLlmGateExecutor(llmClient, toolRegistry, renderer, skillLoader),
             DefaultLogicGateExecutor(),
             DefaultToolGateExecutor(toolRegistry),
             DefaultBashGateExecutor(projectBasePath, renderer),
@@ -234,6 +235,17 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
                 }
             }
 
+            is ExecutionEvent.ToolCompleted -> {
+                _logRows.value += GateRow(
+                    gateName = "Tool ${event.report.toolName}",
+                    gateId = event.gateId,
+                    status = if (event.report.succeeded) GateStatus.SUCCESS else GateStatus.FAILURE,
+                    durationMs = event.report.durationMs,
+                    message = "round ${event.report.round}",
+                    isNested = true,
+                )
+            }
+
             is ExecutionEvent.PipelineCompleted -> {
                 val outputs = event.outputs
                 _executionState.value = ExecutionUiState.Completed(outputs)
@@ -262,7 +274,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         if (!dir.exists()) {
             return@withContext emptyList()
         }
-        val files = dir.listFiles { f -> f.isFile && (f.name.endsWith(".flai.yaml") || f.name.endsWith(".yaml")) }
+        val files = dir.listFiles { file -> file.isFile && isPipelineFileName(file.name) }
             ?: return@withContext emptyList()
         LOG.info("Flai: found ${files.size} pipeline file(s) in ${dir.absolutePath}")
         files.mapNotNull { file ->

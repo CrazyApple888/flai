@@ -7,13 +7,25 @@ import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
 import me.drew.flai.domain.model.ExecutionContext
 import me.drew.flai.domain.port.Tool
+import me.drew.flai.domain.port.ToolInputSchema
+import me.drew.flai.domain.port.ToolSchemaProperty
+import me.drew.flai.domain.port.ToolSchemaType
+import me.drew.flai.domain.port.ToolResult
 
 class PsiSymbolSearchTool(private val project: Project) : Tool {
     override val name = "ide.searchSymbol"
     override val description = "Search for files/symbols by name using IDE index"
+    override val inputSchema = ToolInputSchema(
+        properties = mapOf(
+            "query" to ToolSchemaProperty(ToolSchemaType.STRING, "Name to search"),
+            "scope" to ToolSchemaProperty(ToolSchemaType.STRING, "project or all"),
+        ),
+        required = listOf("query"),
+    )
 
-    override suspend fun invoke(inputs: Map<String, Any?>, context: ExecutionContext): Map<String, Any?> {
-        val query = inputs["query"]?.toString() ?: return mapOf("symbols" to emptyList<Any>())
+    override suspend fun invoke(inputs: Map<String, Any?>, context: ExecutionContext): ToolResult {
+        val query = inputs["query"]?.toString()
+            ?: return ToolResult(mapOf("error" to "Missing 'query' input"), isError = true)
         val scopeArg = inputs["scope"]?.toString()
         val scope = if (scopeArg == "all") GlobalSearchScope.allScope(project)
                     else GlobalSearchScope.projectScope(project)
@@ -37,6 +49,6 @@ class PsiSymbolSearchTool(private val project: Project) : Tool {
                 .take(50)
         }
 
-        return mapOf("symbols" to results, "count" to results.size)
+        return ToolResult(mapOf("symbols" to results, "count" to results.size))
     }
 }

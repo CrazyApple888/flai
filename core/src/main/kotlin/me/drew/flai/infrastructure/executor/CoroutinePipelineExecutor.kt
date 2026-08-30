@@ -27,7 +27,9 @@ class CoroutinePipelineExecutor(private val executors: List<GateExecutor<*>>) : 
                 val executor = executors.firstOrNull { it.canHandle(gate) } as? GateExecutor<Gate>
                     ?: throw IllegalStateException("No executor for gate type ${gate::class.simpleName}")
 
-                val result = executor.execute(gate, context)
+                val result = executor.execute(gate, context) { report ->
+                    send(ExecutionEvent.ToolCompleted(gate.id.value, report))
+                }
                 val duration = System.currentTimeMillis() - start
 
                 if (gate is OutputGate && result is GateResult.Success) {

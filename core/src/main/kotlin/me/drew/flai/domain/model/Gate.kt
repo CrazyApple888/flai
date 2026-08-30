@@ -40,6 +40,8 @@ data class LlmGate(
     val inputMapping: Map<String, String> = emptyMap(),
     val outputMapping: Map<String, String> = mapOf("response" to "response"),
     val endpointConfig: LlmEndpointConfig,
+    val tools: List<String> = emptyList(),
+    val maxToolRounds: Int = 8,
     override val faultTolerant: Boolean = false,
 ) : Gate()
 
@@ -49,7 +51,10 @@ data class LlmEndpointConfig(
     val model: String,
     val params: Map<String, Any?> = emptyMap(),
     val apiKeyVar: String? = null,
+    val provider: LlmProvider = LlmProvider.OPENAI,
 )
+
+enum class LlmProvider { OPENAI, ANTHROPIC }
 
 data class LogicGate(
     override val id: GateId,

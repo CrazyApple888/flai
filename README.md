@@ -25,7 +25,7 @@ Each pipeline is a graph of <b>gates</b> connected by edges. Outputs of one gate
 <b>Why flai:</b>
 <ul>
   <li><b>Pipelines as code.</b> YAML files checked into git — reviewable in PRs, diffable, branchable.</li>
-  <li><b>Native IDE integration.</b> Gutter run icon on <code>*.flai.yaml</code> and <code>*.flai</code> files, plus a live execution log.</li>
+  <li><b>Native IDE integration.</b> Gutter run icon on <code>*.flai.yaml</code>, <code>*.flai.yml</code>, <code>*.flai</code>, <code>*.yaml</code>, and <code>*.yml</code> files, plus a live execution log.</li>
   <li><b>Bring your own model.</b> Endpoint and credentials configured per gate.</li>
   <li><b>Skills, not megaprompts.</b> Compose reusable instruction files (<code>.flai/skills/*.md</code>) per LLM gate.</li>
   <li><b>Secrets stay local.</b> LLM API keys resolve from a pipeline context variable (<code>apiKeyVar</code>) or from IntelliJ's <code>PasswordSafe</code> (<code>flai/&lt;credentialId&gt;</code>) — never written to YAML.</li>
@@ -65,7 +65,7 @@ Built for engineers who want their AI workflows to live in the same repo as the 
 ## Why flai
 
 - **Pipelines as code.** YAML files in `.flai/`, checked into git. Reviewable in PRs, diffable, branchable.
-- **Native IDE integration.** Gutter run icon on `*.flai.yaml` and `*.flai` files, dedicated tool window, live execution log.
+- **Native IDE integration.** Gutter run icon on `.flai`, YAML, and YML pipeline files, dedicated tool window, live execution log.
 - **Bring your own model.** Anthropic and OpenAI response shapes supported out of the box. Endpoint and credentials per-gate.
 - **Tools that touch your code.** Built-in `ide.readFile`, `ide.searchSymbol`, `ide.runCommand`, plus first-class `bash`, `read-file`, and `write-file` gates.
 - **Skills, not megaprompts.** Compose reusable instruction files (`.flai/skills/*.md`) per LLM gate.
@@ -91,7 +91,7 @@ Full spec: [`docs/pipeline-yaml-spec.md`](docs/pipeline-yaml-spec.md).
 
 1. **Install** flai (see below).
 2. Create `.flai/` at your project root.
-3. Drop in a pipeline file, e.g. `.flai/code-review.flai.yaml` (or `.flai/code-review.flai`):
+3. Drop in a pipeline file, e.g. `.flai/code-review.flai.yaml` (YML and `.flai` suffixes are also supported):
 
    ```yaml
    id: code-review
@@ -147,6 +147,12 @@ Full spec: [`docs/pipeline-yaml-spec.md`](docs/pipeline-yaml-spec.md).
 
 **Compatibility:** IntelliJ IDEA 2025.2+ (and other IntelliJ Platform IDEs on the same build).
 
+## Error logs
+
+- **Pipeline runs:** open the **Flai Pipelines** tool window and check the execution log for gate failures and error messages.
+- **Plugin errors:** open the IDE log from **Help → Show Log in Finder/Explorer** and inspect `idea.log`. The default log directory is `~/Library/Logs/JetBrains/<product><version>` on macOS, `~/.cache/JetBrains/<product><version>/log` on Linux, and `%LOCALAPPDATA%\JetBrains\<product><version>\log` on Windows.
+- **CLI runs:** execution events and errors are written to standard error. Redirect them to a file with `2>flai-error.log`; `--quiet` suppresses normal execution events but still reports errors.
+
 ## CLI
 
 Run the same pipelines from the terminal — no IDE required. `flai-cli` is a non-interactive runner packaged as a fat JAR (Java 21+), built for CI.
@@ -190,7 +196,7 @@ Adding a new gate type: sealed subclass in `Gate.kt` → `DefaultXxxGateExecutor
 
 ## Roadmap
 
-- [x] **CLI tool** — run `.flai.yaml` / `.flai` pipelines from the terminal, outside the IDE. Same YAML, same gate types, no IntelliJ required. CI-friendly. See [`docs/cli.md`](docs/cli.md).
+- [x] **CLI tool** — run YAML, YML, or `.flai` pipelines from the terminal, outside the IDE. Same schema, same gate types, no IntelliJ required. CI-friendly. See [`docs/cli.md`](docs/cli.md).
 - [ ] **Tool calling** — let LLM gates call registered tools (function calling): the model decides which tool to invoke, the executor runs it and feeds results back until a final answer.
 - [ ] **MCP server** — expose flai pipelines as MCP tools so any MCP-compatible host (Claude Desktop, other agents) can invoke them directly.
 - [ ] **HTTP gate** — make arbitrary HTTP requests (GET/POST/etc.) from a pipeline; response body and status stored in context.

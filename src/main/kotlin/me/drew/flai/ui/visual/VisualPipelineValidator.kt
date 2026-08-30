@@ -85,6 +85,15 @@ object VisualPipelineValidator {
                 if (gate.endpointConfig.model.isEmpty()) {
                     errors.add(ValidationError(id, "endpointConfig.model", "endpoint model is required for LlmGate '$id'"))
                 }
+                if (gate.maxToolRounds <= 0) {
+                    errors.add(ValidationError(id, "maxToolRounds", "maxToolRounds must be greater than zero for LlmGate '$id'"))
+                }
+                if (gate.tools.any { it.isBlank() }) {
+                    errors.add(ValidationError(id, "tools", "tool names must not be blank for LlmGate '$id'"))
+                }
+                if (gate.tools.distinct().size != gate.tools.size) {
+                    errors.add(ValidationError(id, "tools", "tool names must not be duplicated for LlmGate '$id'"))
+                }
             }
             is LogicGate -> {
                 if (gate.defaultPort.isNullOrEmpty()) {

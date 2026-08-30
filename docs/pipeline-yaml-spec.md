@@ -1,7 +1,7 @@
 # Pipeline YAML Specification
 
-Pipelines live in `<project root>/.flai/` and must be named `*.flai.yaml`, `*.flai`, or `*.yaml`.
-The gutter run icon appears on `*.flai.yaml` and `*.flai` files.
+Pipelines live in `<project root>/.flai/` and must be named `*.flai.yaml`, `*.flai.yml`, `*.flai`, `*.yaml`, or `*.yml`.
+The gutter run icon appears on all supported pipeline file names.
 
 ## Top-level structure
 
@@ -76,12 +76,17 @@ ask-llm:
   skills:                          # optional list of skill file paths
     - .flai/skills/persona.md
     - .flai/skills/output-format.md
+  tools:                           # optional allowlist of registered tools
+    - ide.readFile
+    - ide.runCommand
+  maxToolRounds: 8                 # optional positive limit, default 8
   inputMapping:
     content: raw_text   # template var → context key (maps context into template vars)
   outputMapping:
     response: summary   # LLM output key → context key
   endpoint:
     url: https://api.anthropic.com/v1/messages
+    provider: anthropic            # openai (default) | anthropic
     credentialId: anthropic-key   # looked up via IntelliJ PasswordSafe
     model: claude-sonnet-4-6
     params:             # merged into request body (optional)
@@ -105,12 +110,14 @@ Exactly one must be present. Both can be present; `apiKeyVar` takes precedence w
 # Option A: key from a prior gate (e.g. bash gate that runs `cat ~/.secrets/api-key`)
 endpoint:
   url: https://api.anthropic.com/v1/messages
+  provider: anthropic
   apiKeyVar: my_api_key   # context variable name
   model: claude-sonnet-4-6
 
 # Option B: key from PasswordSafe (default)
 endpoint:
   url: https://api.anthropic.com/v1/messages
+  provider: anthropic
   credentialId: anthropic-key
   model: claude-sonnet-4-6
 ```
@@ -120,9 +127,7 @@ The raw LLM text is always stored under key `"response"` in the executor output;
 
 **Credential storage:** Store API keys via IntelliJ Settings → Passwords. The `credentialId` value is the key name registered under service `"flai/<credentialId>"`.
 
-**Supported API shapes:**
-- Anthropic (`content[0].text`)
-- OpenAI (`choices[0].message.content`)
+**Provider and tool calling:** `endpoint.provider` is `openai` by default; select `anthropic` for the Anthropic Messages protocol. Both providers support standard tool-call conversations. `tools` is an explicit authorization allowlist: only names currently registered by the IDE or CLI are sent to the provider. Unavailable configured names are retained in YAML but omitted at execution. Tool calls run sequentially, stop after `maxToolRounds`, and return malformed arguments or tool exceptions to the model as error results. Tool argument and result contents are never included in execution logs.
 
 **`skills`** (optional) — a list of file paths referencing plain-text skill files. Skills are reusable instruction bundles that are prepended before the gate's `promptTemplate` when the LLM call is made.
 
@@ -438,6 +443,7 @@ gates:
       response: review_text
     endpoint:
       url: https://api.anthropic.com/v1/messages
+      provider: anthropic
       credentialId: anthropic-key
       model: claude-sonnet-4-6
 
@@ -495,6 +501,7 @@ gates:
       response: review_text
     endpoint:
       url: https://api.anthropic.com/v1/messages
+      provider: anthropic
       credentialId: anthropic-key
       model: claude-sonnet-4-6
 

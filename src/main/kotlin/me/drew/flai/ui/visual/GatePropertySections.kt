@@ -22,6 +22,7 @@ data class SectionResult(
 class GatePropertySections(
     private val toolRegistry: DefaultToolRegistry,
     private val onGateUpdated: (nodeSeq: Int, gate: Gate) -> Unit,
+    private val onLlmToolsUpdated: () -> Unit = {},
     private val onRepaint: () -> Unit,
     private val onRefreshPanel: () -> Unit,
     private val getGate: (nodeSeq: Int) -> Gate? = { null },
@@ -170,6 +171,16 @@ class GatePropertySections(
             val g = freshGate(nodeSeq, gate)
             onGateUpdated(nodeSeq, g.copy(endpointConfig = g.endpointConfig.copy(url = v)))
         }))
+        val providerCombo = JComboBox(LlmProvider.entries.toTypedArray()).apply {
+            selectedItem = gate.endpointConfig.provider
+            addActionListener {
+                val selected = selectedItem as? LlmProvider ?: return@addActionListener
+                val current = freshGate(nodeSeq, gate)
+                onGateUpdated(nodeSeq, current.copy(endpointConfig = current.endpointConfig.copy(provider = selected)))
+            }
+        }
+        editableList.add(providerCombo)
+        endpointContent.add(labeledRow("Provider", providerCombo))
         endpointContent.add(labeledRow("Credential ID", buildTextField(gate.endpointConfig.credentialId, editableList) { v ->
             val g = freshGate(nodeSeq, gate)
             onGateUpdated(nodeSeq, g.copy(endpointConfig = g.endpointConfig.copy(credentialId = v)))
@@ -185,6 +196,7 @@ class GatePropertySections(
         val endpointCard = cardPanel("Endpoint Config", endpointContent)
 
         val skillsCard = buildSkillsCard(nodeSeq, gate, editableList)
+        val toolsCard = buildToolsCard(nodeSeq, gate, editableList)
 
         val inputMappingCards = buildMappingSection("Input Mapping", gate.inputMapping, editableList) { map ->
             onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(inputMapping = map))
@@ -194,10 +206,47 @@ class GatePropertySections(
         }
 
         return SectionResult(
-            cards = listOf(promptCard, endpointCard, skillsCard) + inputMappingCards + outputMappingCards,
+            cards = listOf(promptCard, endpointCard, skillsCard, toolsCard) + inputMappingCards + outputMappingCards,
             editableComponents = editableList,
             firstFocusTarget = firstFocus,
         )
+    }
+
+    private fun buildToolsCard(nodeSeq: Int, gate: LlmGate, editableList: MutableList<JComponent>): JPanel {
+        val names = (toolRegistry.listNames() + gate.tools).distinct().sorted()
+        val toolsContent = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
+        names.forEach { name ->
+            val checkbox = JCheckBox(name, name in gate.tools).apply {
+                alignmentX = Component.LEFT_ALIGNMENT
+                addActionListener {
+                    val current = freshGate(nodeSeq, gate)
+                    val updatedTools = if (isSelected) {
+                        (current.tools + name).distinct()
+                    } else {
+                        current.tools.filterNot { it == name }
+                    }
+                    onGateUpdated(nodeSeq, current.copy(tools = updatedTools))
+                    onLlmToolsUpdated()
+                }
+            }
+            editableList.add(checkbox)
+            toolsContent.add(checkbox)
+        }
+        val rounds = JSpinner(SpinnerNumberModel(gate.maxToolRounds, 1, 100, 1)).apply {
+            addChangeListener {
+                val value = (value as Number).toInt()
+                onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(maxToolRounds = value))
+            }
+        }
+        editableList.add(rounds)
+        val content = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(JScrollPane(toolsContent).apply { maximumSize = Dimension(Int.MAX_VALUE, 110) })
+            add(labeledRow("Max Rounds", rounds))
+        }
+        return cardPanel("Tools", content)
     }
 
     private fun buildSkillsCard(nodeSeq: Int, gate: LlmGate, editableList: MutableList<JComponent>): JPanel {

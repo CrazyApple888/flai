@@ -26,7 +26,7 @@
         <fileType
             name="Flai Pipeline"
             implementationClass="me.drew.flai.ui.editor.FlaiYamlFileType"
-            patterns="*.flai.yaml;*.flai"
+            patterns="*.flai.yaml;*.flai.yml;*.flai"
             language="yaml"/>
 
         <notificationGroup
