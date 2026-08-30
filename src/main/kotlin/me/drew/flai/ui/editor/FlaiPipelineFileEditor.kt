@@ -131,7 +131,7 @@ class FlaiPipelineFileEditor(
         model = buildModel(document?.text ?: "")
 
         canvas = PipelineCanvas(model)
-        propertyPanel = NodePropertyPanel(service.toolRegistry)
+        propertyPanel = NodePropertyPanel(service.toolRegistry, ::onApply)
         palettePanel = GatePalettePanel(project, this)
         minimapPanel = MinimapPanel(
             model = model,
@@ -143,9 +143,11 @@ class FlaiPipelineFileEditor(
             override fun onNodeSelected(node: VisualNode?) {
                 propertyPanel.showGate(node, model, canvas)
             }
+
             override fun onLlmStarClicked(node: VisualNode) {
                 propertyPanel.scrollToLlmFieldGroup()
             }
+
             override fun onRepaint() {
                 minimapPanel.refresh()
             }
@@ -272,8 +274,10 @@ class FlaiPipelineFileEditor(
             overlay.setBounds(0, 0, w, h)
             val zoomSize = zoomPanel.preferredSize
             zoomPanel.setBounds(w - zoomSize.width - 6, 8, zoomSize.width, zoomSize.height)
-            minimapPanel.setBounds(6, h - minimapPanel.preferredSize.height - 6,
-                minimapPanel.preferredSize.width, minimapPanel.preferredSize.height)
+            minimapPanel.setBounds(
+                6, h - minimapPanel.preferredSize.height - 6,
+                minimapPanel.preferredSize.width, minimapPanel.preferredSize.height
+            )
         }
 
         overlay.add(zoomPanel)
@@ -417,6 +421,7 @@ class FlaiPipelineFileEditor(
                             setEditingEnabled(true)
                             showError("Run failed: ${state.reason}")
                         }
+
                         else -> setEditingEnabled(true)
                     }
                 }

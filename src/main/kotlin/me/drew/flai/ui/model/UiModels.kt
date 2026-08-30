@@ -27,6 +27,7 @@ data class GateRow(
     val message: String? = null,
     val outputLabel: String? = null,
     val outputValue: String? = null,
+    val isNested: Boolean = false,
 )
 
 enum class GateStatus { RUNNING, SUCCESS, FAILURE, OUTPUT, TOLERATED_FAILURE }

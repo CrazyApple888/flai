@@ -9,7 +9,10 @@ import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import java.awt.*
 import javax.swing.*
 
-class NodePropertyPanel(private val toolRegistry: DefaultToolRegistry) : JPanel(BorderLayout()) {
+class NodePropertyPanel(
+    private val toolRegistry: DefaultToolRegistry,
+    private val onLlmToolsUpdated: () -> Unit = {},
+) : JPanel(BorderLayout()) {
 
     private var isEditable: Boolean = true
 
@@ -50,6 +53,7 @@ class NodePropertyPanel(private val toolRegistry: DefaultToolRegistry) : JPanel(
             currentModel?.updateGate(nodeSeq, gate)
             canvas?.repaint()
         },
+        onLlmToolsUpdated = onLlmToolsUpdated,
         onRepaint = { canvas?.repaint() },
         onRefreshPanel = {
             val node = currentNode

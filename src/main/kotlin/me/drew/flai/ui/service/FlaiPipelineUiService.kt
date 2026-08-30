@@ -241,6 +241,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
                     status = if (event.report.succeeded) GateStatus.SUCCESS else GateStatus.FAILURE,
                     durationMs = event.report.durationMs,
                     message = "round ${event.report.round}",
+                    isNested = true,
                 )
             }
 

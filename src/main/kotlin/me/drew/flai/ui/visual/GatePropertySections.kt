@@ -22,6 +22,7 @@ data class SectionResult(
 class GatePropertySections(
     private val toolRegistry: DefaultToolRegistry,
     private val onGateUpdated: (nodeSeq: Int, gate: Gate) -> Unit,
+    private val onLlmToolsUpdated: () -> Unit = {},
     private val onRepaint: () -> Unit,
     private val onRefreshPanel: () -> Unit,
     private val getGate: (nodeSeq: Int) -> Gate? = { null },
@@ -213,14 +214,25 @@ class GatePropertySections(
 
     private fun buildToolsCard(nodeSeq: Int, gate: LlmGate, editableList: MutableList<JComponent>): JPanel {
         val names = (toolRegistry.listNames() + gate.tools).distinct().sorted()
-        val list = JList(names.toTypedArray()).apply {
-            selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
-            selectedIndices = names.mapIndexedNotNull { index, name -> index.takeIf { name in gate.tools } }.toIntArray()
-            addListSelectionListener {
-                if (!it.valueIsAdjusting) {
-                    onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(tools = selectedValuesList.toList()))
+        val toolsContent = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        }
+        names.forEach { name ->
+            val checkbox = JCheckBox(name, name in gate.tools).apply {
+                alignmentX = Component.LEFT_ALIGNMENT
+                addActionListener {
+                    val current = freshGate(nodeSeq, gate)
+                    val updatedTools = if (isSelected) {
+                        (current.tools + name).distinct()
+                    } else {
+                        current.tools.filterNot { it == name }
+                    }
+                    onGateUpdated(nodeSeq, current.copy(tools = updatedTools))
+                    onLlmToolsUpdated()
                 }
             }
+            editableList.add(checkbox)
+            toolsContent.add(checkbox)
         }
         val rounds = JSpinner(SpinnerNumberModel(gate.maxToolRounds, 1, 100, 1)).apply {
             addChangeListener {
@@ -228,11 +240,10 @@ class GatePropertySections(
                 onGateUpdated(nodeSeq, freshGate(nodeSeq, gate).copy(maxToolRounds = value))
             }
         }
-        editableList.add(list)
         editableList.add(rounds)
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(JScrollPane(list).apply { maximumSize = Dimension(Int.MAX_VALUE, 110) })
+            add(JScrollPane(toolsContent).apply { maximumSize = Dimension(Int.MAX_VALUE, 110) })
             add(labeledRow("Max Rounds", rounds))
         }
         return cardPanel("Tools", content)
