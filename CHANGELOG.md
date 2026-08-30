@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [0.6.0]
+### Added
+- LLM gates can allow registered tools and run iterative tool-call conversations with OpenAI and Anthropic endpoints, with a configurable maximum number of tool rounds.
+- The visual pipeline editor now provides an LLM provider selector, tool allowlist controls, and a maximum tool-round setting.
+- Execution logs report each LLM tool call's name, round, status, and duration while keeping arguments and results redacted.
+
+### Changed
+- Built-in IDE and CLI tools now publish input schemas so LLM providers can validate tool-call arguments.
+
 ### Fixed
 - Pipeline reload now discovers `.flai`, `.flai.yml`, `.yml`, `.flai.yaml`, and `.yaml` files.
 
