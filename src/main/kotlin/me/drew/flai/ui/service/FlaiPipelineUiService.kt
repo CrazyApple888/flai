@@ -24,6 +24,7 @@ import me.drew.flai.infrastructure.llm.HttpLlmClient
 import me.drew.flai.infrastructure.pipeline.PipelineValidator
 import me.drew.flai.infrastructure.pipeline.YamlPipelineParser
 import me.drew.flai.infrastructure.pipeline.YamlPipelineRepository
+import me.drew.flai.infrastructure.pipeline.isPipelineFileName
 import me.drew.flai.infrastructure.template.SimpleTemplateRenderer
 import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import me.drew.flai.ui.model.*
@@ -273,7 +274,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         if (!dir.exists()) {
             return@withContext emptyList()
         }
-        val files = dir.listFiles { f -> f.isFile && (f.name.endsWith(".flai.yaml") || f.name.endsWith(".yaml")) }
+        val files = dir.listFiles { file -> file.isFile && isPipelineFileName(file.name) }
             ?: return@withContext emptyList()
         LOG.info("Flai: found ${files.size} pipeline file(s) in ${dir.absolutePath}")
         files.mapNotNull { file ->

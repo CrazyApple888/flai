@@ -10,6 +10,7 @@ import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
+import me.drew.flai.infrastructure.pipeline.isPipelineFileName
 import java.beans.PropertyChangeListener
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -20,7 +21,7 @@ class FlaiPipelineFileEditorProvider : FileEditorProvider, DumbAware {
     override fun getEditorTypeId(): String = "flai-visual-pipeline"
 
     override fun accept(project: Project, file: VirtualFile): Boolean =
-        file.name.endsWith(".flai.yaml") || file.name.endsWith(".flai")
+        isPipelineFileName(file.name)
 
     override fun createEditor(project: Project, file: VirtualFile): FileEditor {
         return try {

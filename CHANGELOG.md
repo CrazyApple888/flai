@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Pipeline reload now discovers `.flai`, `.flai.yml`, `.yml`, `.flai.yaml`, and `.yaml` files.
+
 ## [0.5.0]
 ### Changed
 - Refreshed plugin branding: new plugin icon (`pluginIcon.svg`) plus updated `.flai.yaml` file type and tool window icons (light and dark variants).

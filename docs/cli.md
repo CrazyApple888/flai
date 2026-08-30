@@ -1,8 +1,8 @@
 # flai CLI
 
 `flai-cli` is a non-interactive command-line runner for flai pipelines. It executes a
-`*.flai.yaml` pipeline file with provided inputs and exits with a machine-readable status,
-making it suitable for CI.
+pipeline file (`*.flai.yaml`, `*.flai.yml`, `*.flai`, `*.yaml`, or `*.yml`) with
+provided inputs and exits with a machine-readable status, making it suitable for CI.
 
 ## Get it
 
