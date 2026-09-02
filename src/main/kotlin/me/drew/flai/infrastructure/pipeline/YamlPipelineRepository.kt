@@ -3,9 +3,16 @@ package me.drew.flai.infrastructure.pipeline
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.newvfs.BulkFileListener
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
+import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.withContext
 import me.drew.flai.domain.model.Pipeline
 import me.drew.flai.domain.model.PipelineId
@@ -40,7 +47,39 @@ class YamlPipelineRepository(
         }
     }
 
-    override fun watchAll(): Flow<Pipeline> = emptyFlow()
+    /**
+     * Emits once per virtual-file-system change that can affect `<project>/.flai`.
+     * The listener only inspects event paths and never blocks; the consumer decides
+     * when to reload.
+     */
+    override fun watchChanges(): Flow<Unit> = callbackFlow {
+        val connection = project.messageBus.connect()
+        connection.subscribe(
+            VirtualFileManager.VFS_CHANGES,
+            object : BulkFileListener {
+                override fun after(events: List<VFileEvent>) {
+                    val directoryPath = pipelineDir?.absolutePath ?: return
+                    val relevant = events.any { event ->
+                        pathsOf(event).any { path -> PipelineFileEventFilter.isRelevant(path, directoryPath) }
+                    }
+                    if (relevant) {
+                        trySend(Unit)
+                    }
+                }
+            }
+        )
+        awaitClose { connection.disconnect() }
+    }.conflate()
+
+    /** Every path an event touches — renames and moves affect both the old and the new location. */
+    private fun pathsOf(event: VFileEvent): List<String> = when {
+        event is VFilePropertyChangeEvent && event.propertyName == VirtualFile.PROP_NAME ->
+            listOf(event.oldPath, event.newPath)
+
+        event is VFileMoveEvent -> listOf(event.oldPath, event.newPath)
+
+        else -> listOf(event.path)
+    }
 
     private fun findFile(dir: File, id: PipelineId): File? {
         if (!dir.exists()) {

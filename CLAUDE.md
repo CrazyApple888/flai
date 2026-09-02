@@ -55,7 +55,7 @@ Layers:
 **`core/.../domain/`** — pure Kotlin, no IntelliJ deps
 - `model/` — `Pipeline`, `Gate` (sealed: Input/Output/Llm/Logic/Tool), `ExecutionContext`, `GateResult`
 - `model/GatePorts.kt` — `Gate.inputPorts()` / `Gate.outputPorts()`; `Gate.withId()` / `Gate.withLabel()` on the sealed class
-- `port/` — interfaces: `LlmClient`, `PipelineRepository`, `TemplateRenderer`, `ToolRegistry`, `CredentialResolver`
+- `port/` — interfaces: `LlmClient`, `PipelineRepository` (incl. `watchChanges(): Flow<Unit>` — emits when pipeline files may have changed; consumers reload), `TemplateRenderer`, `ToolRegistry`, `CredentialResolver`
 - `executor/GateExecutor<G>` — typed interface: `canHandle()` + `execute()`
 - `service/PipelineExecutor` — emits `Flow<ExecutionEvent>`
 - `service/PipelineValidator` — the single pipeline validator: `collectIssues()` returns all `ValidationIssue`s (id/entry/gate fields/ports/edges/cycles); `validate()` throws `PipelineValidationException(issues)`. Used by use cases, CLI and the visual editor
@@ -68,7 +68,8 @@ Layers:
 - `tool/DefaultToolRegistry` — plain tool registry
 
 **root `infrastructure/`** — IntelliJ adapters
-- `pipeline/YamlPipelineRepository` — VFS-backed repository
+- `pipeline/YamlPipelineRepository` — VFS-backed repository; `watchChanges()` bridges `VFS_CHANGES` into a `Flow<Unit>`
+- `pipeline/PipelineFileEventFilter` — pure path check: does a VFS event path affect the `.flai` directory?
 - `credential/PasswordSafeCredentialResolver` — `CredentialResolver` over IntelliJ `PasswordSafe`
 - `tool/` — `PsiSymbolSearchTool`, `FileReadTool`, `RunCommandTool` registered at startup
 - `layout/FileLayoutStore` + `LayoutSidecarLocator` — visual-editor node positions in a per-project sidecar JSON (implements `ui/visual/LayoutStore`)
@@ -77,7 +78,7 @@ Layers:
 **`cli/`** adapters — `FilePipelineRepository`, `EnvCredentialResolver` (`FLAI_CREDENTIAL_<ID>` env vars), `CliFileReadTool`, `CliRunCommandTool`
 
 **`ui/`** — Swing + coroutines, all state managed in `FlaiPipelineUiService` (project-level `@Service`)
-- `toolwindow/` — `PipelineToolWindowFactory` → `PipelinePanel` (splits list + detail + log)
+- `toolwindow/` — `PipelineToolWindowFactory` → `PipelinePanel` (splits list + detail + log); the list auto-refreshes from `repository.watchChanges()` and shows unparseable files as error rows, see [`docs/tool-window.md`](docs/tool-window.md)
 - `editor/FlaiRunLineMarkerContributor` — gutter run icon on `*.flai.yaml` files
 - `editor/FlaiPipelineFileEditor` — the Visual tab: Swing wiring only; observes `VisualPipelineDocumentSync` state and shows dialogs
 - `service/VisualPipelineDocumentSync` — one per open visual editor (created by `FlaiPipelineUiService.createDocumentSync`); owns model↔document sync: debounce, reload on external change, parse guard, structural check, normalize policy, serialize + core validation + write, layout persistence. `SyncPolicy` is the pure decision function

@@ -21,6 +21,19 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.UIManager
 
+/**
+ * Wraps [message] in HTML so its line breaks survive in a Swing label or tooltip, which otherwise
+ * collapse newlines. Used for multi-line YAML parser messages.
+ */
+internal fun asHtmlMultiline(message: String): String {
+    val escaped = message
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\n", "<br/>")
+    return "<html>$escaped</html>"
+}
+
 internal fun roundedWrapper(child: JComponent): JPanel {
     val margin = JBUI.scale(8)
     val radius = JBUI.scale(8)

@@ -27,5 +27,5 @@ class FilePipelineRepository(
 
     override suspend fun load(id: PipelineId): Pipeline = load()
 
-    override fun watchAll(): Flow<Pipeline> = emptyFlow()
+    override fun watchChanges(): Flow<Unit> = emptyFlow()
 }

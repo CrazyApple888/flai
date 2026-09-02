@@ -24,7 +24,7 @@ import javax.swing.*
 class PipelineListPanel(
     private val service: FlaiPipelineUiService,
     disposable: Disposable,
-    private val onSelect: (UiPipeline) -> Unit,
+    private val onSelectionChanged: (UiPipeline?) -> Unit,
 ) : JPanel(BorderLayout()) {
 
     private val listModel = CollectionListModel<UiPipeline>()
@@ -36,9 +36,10 @@ class PipelineListPanel(
         selectionMode = ListSelectionModel.SINGLE_SELECTION
         addListSelectionListener { e ->
             if (!e.valueIsAdjusting && !suppressSelectionEvent) {
+                // Publish only; the selectedPipeline collector below drives onSelectionChanged,
+                // so the detail panel is rebuilt exactly once per selection change.
                 selectedValue?.let { pipeline ->
                     service.selectPipeline(pipeline)
-                    onSelect(pipeline)
                 }
             }
         }
@@ -64,36 +65,52 @@ class PipelineListPanel(
             service.pipelines.onEach { pipelines ->
                 withContext(Dispatchers.Main) {
                     suppressSelectionEvent = true
-                    val previouslySelected = service.selectedPipeline.value?.id
+                    val previouslySelected = service.selectedPipeline.value
                     listModel.replaceAll(pipelines)
-                    // Restore selection after list update
-                    val idx = pipelines.indexOfFirst { it.id == previouslySelected }
-                    if (idx >= 0) {
-                        jbList.selectedIndex = idx
+                    // Restore selection after list update: by pipeline id first, then by file path
+                    val restoredIndex = indexOfMatch(pipelines, previouslySelected)
+                    if (restoredIndex >= 0) {
+                        jbList.selectedIndex = restoredIndex
+                    } else {
+                        jbList.clearSelection()
                     }
                     suppressSelectionEvent = false
                 }
             }.collect {}
         }
 
-        // Sync external selection changes (e.g. from gutter action)
+        // Sync external selection changes (e.g. from gutter action) and cleared selections
         scope.launch {
             service.selectedPipeline.onEach { selected ->
                 withContext(Dispatchers.Main) {
-                    if (selected == null) {
-                        return@withContext
-                    }
-                    val idx = listModel.items.indexOfFirst { it.id == selected.id }
-                    if (idx >= 0 && jbList.selectedIndex != idx) {
+                    val selectedIndex = indexOfMatch(listModel.items, selected)
+                    if (jbList.selectedIndex != selectedIndex) {
                         suppressSelectionEvent = true
-                        jbList.selectedIndex = idx
-                        jbList.ensureIndexIsVisible(idx)
+                        if (selectedIndex >= 0) {
+                            jbList.selectedIndex = selectedIndex
+                            jbList.ensureIndexIsVisible(selectedIndex)
+                        } else {
+                            jbList.clearSelection()
+                        }
                         suppressSelectionEvent = false
-                        onSelect(selected)
                     }
+                    // Always notify: the same row may have become invalid (or valid) in place
+                    onSelectionChanged(selected)
                 }
             }.collect {}
         }
+    }
+
+    /** Index of [target] in [pipelines], matched by pipeline id and then by file path; -1 when absent. */
+    private fun indexOfMatch(pipelines: List<UiPipeline>, target: UiPipeline?): Int {
+        if (target == null) {
+            return -1
+        }
+        val byId = pipelines.indexOfFirst { it.id == target.id }
+        if (byId >= 0) {
+            return byId
+        }
+        return pipelines.indexOfFirst { it.filePath != null && it.filePath == target.filePath }
     }
 
     private class PipelineCellRenderer : ColoredListCellRenderer<UiPipeline>() {
@@ -104,9 +121,18 @@ class PipelineListPanel(
             selected: Boolean,
             hasFocus: Boolean,
         ) {
+            val parseError = value.parseError
+            if (parseError != null) {
+                icon = AllIcons.General.Warning
+                append(value.name, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
+                append("  invalid YAML", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
+                toolTipText = asHtmlMultiline(parseError)
+                return
+            }
             icon = FlaiIcons.PIPELINE_FILE
             append(value.name, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
             append("  ${value.gateCount} gates", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
+            toolTipText = null
         }
     }
 }

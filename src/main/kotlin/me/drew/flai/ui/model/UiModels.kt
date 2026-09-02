@@ -3,6 +3,10 @@ package me.drew.flai.ui.model
 import me.drew.flai.domain.model.PipelineId
 import java.nio.file.Path
 
+/**
+ * One row of the pipeline list. A file that failed to parse is still represented, with
+ * [parseError] holding the parser message and every pipeline detail left empty.
+ */
 data class UiPipeline(
     val id: PipelineId,
     val name: String,
@@ -10,6 +14,7 @@ data class UiPipeline(
     val gateCount: Int,
     val filePath: Path?,
     val inputSpecs: List<InputFieldSpec>,
+    val parseError: String? = null,
 )
 
 data class InputFieldSpec(
