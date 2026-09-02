@@ -31,11 +31,9 @@ class VisualPipelineValidatorTest {
     }
 
     private fun makeNoEntryModel(): VisualPipelineModel {
-        // Build a model with a valid pipeline then clear the entry
-        val gate = InputGate(id = GateId("start"), label = "Start")
+        // Build a model with no nodes so entryNodeSeq is -1
         val model = VisualPipelineModel()
-        model.addNode(gate, 0, 0)
-        // Don't set entry — entryNodeSeq defaults to -1
+        // Don't add any nodes — entryNodeSeq defaults to -1
         return model
     }
 
