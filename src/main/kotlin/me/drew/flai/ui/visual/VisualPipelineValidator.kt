@@ -17,25 +17,25 @@ object VisualPipelineValidator {
         val errors = mutableListOf<ValidationError>()
 
         // Pipeline metadata
-        if (model.pipelineId.isEmpty()) {
+        if (model.pipelineId.isBlank()) {
             errors.add(ValidationError("(pipeline)", "id", "Pipeline id is required"))
         }
         if (model.entryNodeSeq == -1 || model.nodeBySeq(model.entryNodeSeq) == null) {
             errors.add(ValidationError("(pipeline)", "entry", "Pipeline entry gate is required and must exist"))
         }
 
+        collectGateIdErrors(model, errors)
+
         // Gate-level validation
         for (node in model.nodes) {
             val gateId = node.gateId
-            if (gateId.isEmpty()) {
-                errors.add(ValidationError(gateId, "id", "Gate id is required"))
+            if (gateId.isBlank()) {
                 continue
             }
             validateGate(node.gate, errors)
         }
 
         // Edge integrity (EC-10, EC-11)
-        val gateIds = model.nodes.map { it.gateId }.toSet()
         for (edge in model.edges) {
             val fromNode = model.nodeBySeq(edge.fromSeq)
             val toNode = model.nodeBySeq(edge.toSeq)
@@ -76,6 +76,15 @@ object VisualPipelineValidator {
         if (model.entryNodeSeq == -1 || model.nodeBySeq(model.entryNodeSeq) == null) {
             errors.add(ValidationError("(pipeline)", "entry", "Pipeline entry gate is required and must exist"))
         }
+        collectGateIdErrors(model, errors)
+        return ValidationResult(errors)
+    }
+
+    /**
+     * Shared per-gate id checks used by both [validate] and [validateStructure]:
+     * every gate id must be non-blank and unique.
+     */
+    private fun collectGateIdErrors(model: VisualPipelineModel, errors: MutableList<ValidationError>) {
         val seen = mutableSetOf<String>()
         for (node in model.nodes) {
             val gateId = node.gateId
@@ -87,7 +96,6 @@ object VisualPipelineValidator {
                 errors.add(ValidationError(gateId, "id", "Gate id '$gateId' is used more than once"))
             }
         }
-        return ValidationResult(errors)
     }
 
     private fun validateGate(gate: Gate, errors: MutableList<ValidationError>) {

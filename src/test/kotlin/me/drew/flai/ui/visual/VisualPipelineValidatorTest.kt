@@ -257,6 +257,17 @@ class VisualPipelineValidatorTest {
     }
 
     @Test
+    fun `validate fails on duplicate gate ids`() {
+        val model = VisualPipelineModel()
+        model.setPipelineMetadata("p", "P")
+        model.addNode(InputGate(id = GateId("dup"), label = "a"), 0, 0)
+        model.addNode(OutputGate(id = GateId("dup"), label = "b"), 0, 0)
+        val result = VisualPipelineValidator.validate(model)
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.gateId == "dup" && it.field == "id" })
+    }
+
+    @Test
     fun `validateStructure passes for valid model`() {
         val result = VisualPipelineValidator.validateStructure(makeValidModel())
         assertTrue(result.isValid)

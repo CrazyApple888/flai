@@ -108,9 +108,10 @@ class FlaiPipelineFileEditor(
     private val rootPanel = JPanel(BorderLayout())
 
     private var applyInProgress = false
+
     /** True when the document text parses (or is blank). Auto-sync never overwrites unparsable YAML. */
     private var documentParsable = true
-    private var autoSyncEnabled = true
+    /** Pending debounced model → document sync; cancelled on every new change, Apply, Run and dispose. */
     private var autoSyncJob: Job? = null
     private var debounceJob: Job? = null
     private var savedTimer: Timer? = null
@@ -340,9 +341,6 @@ class FlaiPipelineFileEditor(
     }
 
     private fun scheduleAutoSync() {
-        if (!autoSyncEnabled) {
-            return
-        }
         autoSyncJob?.cancel()
         autoSyncJob = editorScope.launch {
             delay(AUTO_SYNC_DEBOUNCE_MS)
@@ -353,11 +351,12 @@ class FlaiPipelineFileEditor(
     }
 
     private fun autoSync() {
-        if (!autoSyncEnabled) {
-            return
-        }
         if (!documentParsable) {
             showError("YAML has parse errors — fix them in the text editor; visual edits are not synced")
+            return
+        }
+        if (model.nodes.isEmpty()) {
+            showError("Add at least one gate to save")
             return
         }
         val structure = VisualPipelineValidator.validateStructure(model)
@@ -365,9 +364,8 @@ class FlaiPipelineFileEditor(
             showError(structure.errors.joinToString("; ") { "${it.gateId} / ${it.field}: ${it.message}" })
             return
         }
-        if (!confirmNormalizeIfNeeded()) {
-            autoSyncEnabled = false
-            showError("Auto-sync off — press Apply to write changes")
+        if (needsNormalizeConfirmation()) {
+            showError("File contains YAML comments — press Apply to write (formatting will be normalized)")
             return
         }
         writeModelToDocument()
@@ -388,14 +386,23 @@ class FlaiPipelineFileEditor(
     }
 
     /**
+     * True when a sync would trigger the "YAML will be normalized" confirmation:
+     * the document contains comments or document markers and the user has not
+     * yet accepted the warning for this file.
+     */
+    private fun needsNormalizeConfirmation(): Boolean {
+        val yamlText = document?.text ?: ""
+        val propsKey = "flai.apply.warned.${file.path}"
+        val alreadyWarned = PropertiesComponent.getInstance().getBoolean(propsKey, false)
+        return !alreadyWarned && (yamlText.contains('#') || yamlText.contains("---"))
+    }
+
+    /**
      * Shows the one-time "YAML will be normalized" confirmation when the document
      * contains comments or document markers. Returns false if the user cancelled.
      */
     private fun confirmNormalizeIfNeeded(): Boolean {
-        val yamlText = document?.text ?: ""
-        val propsKey = "flai.apply.warned.${file.path}"
-        val alreadyWarned = PropertiesComponent.getInstance().getBoolean(propsKey, false)
-        if (alreadyWarned || !(yamlText.contains('#') || yamlText.contains("---"))) {
+        if (!needsNormalizeConfirmation()) {
             return true
         }
         val choice = JOptionPane.showConfirmDialog(
@@ -408,17 +415,23 @@ class FlaiPipelineFileEditor(
         if (choice != JOptionPane.OK_OPTION) {
             return false
         }
-        PropertiesComponent.getInstance().setValue(propsKey, true)
+        PropertiesComponent.getInstance().setValue("flai.apply.warned.${file.path}", true)
         return true
     }
 
     private fun writeModelToDocument() {
         val doc = document
         val serialized = serializer.serialize(model.toPipeline())
+        try {
+            parser.parse(serialized)
+        } catch (e: Exception) {
+            showError("Cannot write YAML: ${e.message}")
+            return
+        }
         if (doc != null && doc.text != serialized) {
             applyInProgress = true
             try {
-                WriteCommandAction.runWriteCommandAction(project, "Apply Visual Pipeline", null, Runnable {
+                WriteCommandAction.runWriteCommandAction(project, "Apply Visual Pipeline", file.path, Runnable {
                     doc.setText(serialized)
                 })
             } finally {
@@ -458,6 +471,7 @@ class FlaiPipelineFileEditor(
     }
 
     private fun onRun() {
+        autoSyncJob?.cancel()
         FileDocumentManager.getInstance().saveDocument(document ?: return)
         service.runFromFile(file.path)
     }
