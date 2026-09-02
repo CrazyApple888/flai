@@ -3,6 +3,12 @@
 # flai Changelog
 
 ## [Unreleased]
+### Added
+- Visual editor: changes are now written to the pipeline YAML automatically (debounced) and saved to disk; `Apply` remains for full validation.
+- Visual editor: empty pipeline files get a pipeline `id`/`name` derived from the file name, and the first dropped gate becomes the `entry` gate.
+
+### Fixed
+- Visual editor: new pipeline files could not be applied or run because the pipeline had no `id` and no `entry`.
 
 ## [0.6.0]
 ### Added
