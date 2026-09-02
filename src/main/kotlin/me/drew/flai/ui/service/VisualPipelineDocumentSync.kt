@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import me.drew.flai.domain.service.PipelineValidationException
 import me.drew.flai.domain.service.PipelineValidator
 import me.drew.flai.infrastructure.pipeline.PipelineFileNames
 import me.drew.flai.infrastructure.pipeline.YamlPipelineParser
@@ -29,6 +28,7 @@ import me.drew.flai.ui.util.coroutineScope
 import me.drew.flai.ui.visual.GatePosition
 import me.drew.flai.ui.visual.LayoutStore
 import me.drew.flai.ui.visual.ValidationError
+import me.drew.flai.ui.visual.ValidationResult
 import me.drew.flai.ui.visual.VisualPipelineModel
 import me.drew.flai.ui.visual.VisualPipelineValidator
 
@@ -62,7 +62,12 @@ class VisualPipelineDocumentSync(
 
     sealed class ApplyOutcome {
         object Written : ApplyOutcome()
-        data class ValidationFailed(val errors: List<ValidationError>) : ApplyOutcome()
+
+        /** The YAML was written; gate-field rules still fail, so the pipeline cannot run yet. */
+        data class WrittenWithValidationErrors(val errors: List<ValidationError>) : ApplyOutcome()
+
+        /** Structure is broken (gate ids, entry gate) — nothing was written. */
+        data class StructureInvalid(val errors: List<ValidationError>) : ApplyOutcome()
         object NeedsNormalizeConfirmation : ApplyOutcome()
         data class WriteFailed(val message: String) : ApplyOutcome()
     }
@@ -175,21 +180,35 @@ class VisualPipelineDocumentSync(
         }
     }
 
-    /** Full validation, then write. Never shows dialogs; the caller decides how to present the outcome. */
+    /**
+     * Writes first, then validates: only an unparsable document or a broken structure blocks the
+     * write. Never shows dialogs; the caller decides how to present the outcome.
+     */
     fun apply(): ApplyOutcome {
         autoSyncJob?.cancel()
         if (!documentParsable) {
             return writeFailed(SyncPolicy.UNPARSABLE_MESSAGE)
         }
-        val result = VisualPipelineValidator.validate(model, validator)
-        if (!result.isValid) {
-            return ApplyOutcome.ValidationFailed(result.errors)
+        val structure = VisualPipelineValidator.validateStructure(model)
+        if (!structure.isValid) {
+            return ApplyOutcome.StructureInvalid(structure.errors)
         }
         if (normalizationRequired && !preferences.isNormalizeAccepted(file)) {
             return ApplyOutcome.NeedsNormalizeConfirmation
         }
-        return writeModelToDocument()
+        val outcome = writeModelToDocument()
+        if (outcome !is ApplyOutcome.Written) {
+            return outcome
+        }
+        val result = validateFully()
+        if (!result.isValid) {
+            return ApplyOutcome.WrittenWithValidationErrors(result.errors)
+        }
+        return outcome
     }
+
+    /** Every rule — structure plus the core gate/edge rules. Used by Apply and Run after the write. */
+    fun validateFully(): ValidationResult = VisualPipelineValidator.validate(model, validator)
 
     fun acceptNormalizeAndApply(): ApplyOutcome {
         preferences.acceptNormalize(file)
@@ -225,11 +244,6 @@ class VisualPipelineDocumentSync(
             return writeFailed("Cannot write YAML: document is read-only")
         }
         val pipeline = model.toPipeline()
-        try {
-            validator.validate(pipeline)
-        } catch (e: PipelineValidationException) {
-            return writeFailed(e.issues.joinToString("; ") { it.message })
-        }
         val serialized = serializer.serialize(pipeline)
         try {
             parser.parse(serialized)

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.drew.flai.domain.model.InputGate
+import me.drew.flai.domain.model.Pipeline
 import me.drew.flai.domain.model.PipelineId
 import me.drew.flai.domain.model.TraceStatus
 import me.drew.flai.domain.service.ExecutionEvent
@@ -77,6 +78,66 @@ internal fun reconcileSelection(pipelines: List<UiPipeline>, previous: UiPipelin
     }
     return pipelines.firstOrNull { it.id == previous.id }
         ?: pipelines.firstOrNull { it.filePath != null && it.filePath == previous.filePath }
+}
+
+/**
+ * True when [previous] and [next] denote the same pipeline: the same id, or — when the id changed
+ * in the file — the same non-null file path. Mirrors the matching rules of [reconcileSelection]
+ * instead of data-class equality, so a reloaded row with a fresh gate count or fresh validation
+ * issues still counts as the same pipeline.
+ */
+private fun isSamePipeline(previous: UiPipeline, next: UiPipeline): Boolean {
+    return previous.id == next.id || previous.filePath != null && previous.filePath == next.filePath
+}
+
+/**
+ * Decides whether selecting [next] must drop the previous run's log and result. It must when the
+ * selection moves to a different pipeline than [previous], so a stale "run failed" message never
+ * shows up under a freshly selected pipeline. A run in progress is never touched.
+ */
+internal fun shouldClearExecutionResult(
+    previous: UiPipeline?,
+    next: UiPipeline,
+    state: ExecutionUiState,
+): Boolean {
+    if (state is ExecutionUiState.Running) {
+        return false
+    }
+    if (previous == null) {
+        return true
+    }
+    return !isSamePipeline(previous, next)
+}
+
+/**
+ * Maps a parsed [pipeline] to its list row. Pure: no project, no IO — [validator] only inspects
+ * the model. [filePath] is the file the pipeline was read from.
+ */
+internal fun toUiPipeline(
+    pipeline: Pipeline,
+    filePath: Path?,
+    validator: PipelineValidator,
+): UiPipeline {
+    val inputSpecs = (pipeline.gates[pipeline.entryGateId] as? InputGate)
+        ?.inputSchema
+        ?.map { field ->
+            InputFieldSpec(
+                key = field.name,
+                label = field.name,
+                defaultValue = field.default ?: "",
+                required = field.required,
+            )
+        } ?: emptyList()
+
+    return UiPipeline(
+        id = pipeline.id,
+        name = pipeline.name,
+        description = pipeline.description,
+        gateCount = pipeline.gates.size,
+        filePath = filePath,
+        inputSpecs = inputSpecs,
+        validationIssues = validator.collectIssues(pipeline).map { issue -> issue.message },
+    )
 }
 
 /**
@@ -253,7 +314,19 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         }
     }
 
+    /**
+     * Publishes [pipeline] as the selected row. Moving to a different pipeline while nothing is
+     * running also drops the previous run's log and result, so the red failure message of an
+     * earlier run does not reappear under the newly selected pipeline.
+     *
+     * Reload reconciliation goes through [reconcileSelection] instead and deliberately keeps the
+     * execution result: re-selecting the same row after a file change is not a selection change.
+     */
     fun selectPipeline(pipeline: UiPipeline) {
+        if (shouldClearExecutionResult(_selectedPipeline.value, pipeline, _executionState.value)) {
+            _logRows.value = emptyList()
+            _executionState.value = ExecutionUiState.Idle
+        }
         _selectedPipeline.value = pipeline
     }
 
@@ -416,28 +489,8 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         }
     }
 
-    private fun toUiPipelineFromFile(file: File): UiPipeline {
-        val pipeline = parser.parse(file.readText())
-        val inputSpecs = (pipeline.gates[pipeline.entryGateId] as? InputGate)
-            ?.inputSchema
-            ?.map { field ->
-                InputFieldSpec(
-                    key = field.name,
-                    label = field.name,
-                    defaultValue = field.default ?: "",
-                    required = field.required,
-                )
-            } ?: emptyList()
-
-        return UiPipeline(
-            id = pipeline.id,
-            name = pipeline.name,
-            description = pipeline.description,
-            gateCount = pipeline.gates.size,
-            filePath = file.toPath(),
-            inputSpecs = inputSpecs,
-        )
-    }
+    private fun toUiPipelineFromFile(file: File): UiPipeline =
+        toUiPipeline(parser.parse(file.readText()), file.toPath(), validator)
 
     override fun dispose() {
         serviceScope.cancel()

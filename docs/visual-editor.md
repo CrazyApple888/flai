@@ -4,7 +4,7 @@ The **Visual** tab on any pipeline file (`*.flai.yaml`, `*.flai.yml`, `*.flai`, 
 
 ## New files
 
-Opening an empty pipeline file seeds the pipeline `id` and `name` from the file name (`my-flow.flai.yaml` → `my-flow`; characters outside `a-z0-9_-` become `-`). The first gate you drop becomes the `entry` gate; deleting the entry gate moves `entry` to the first remaining gate.
+Opening an empty pipeline file seeds the pipeline `id` and `name` from the file name (`my-flow.flai.yaml` → `my-flow`; characters outside `a-z0-9_-` become `-`). The first gate you drop becomes the `entry` gate; deleting the entry gate moves `entry` to the first remaining gate. A dropped gate gets the id `<gate type>_<epoch milliseconds>` (for example `llm_1731582394512`); rename it in the property panel.
 
 ## Auto-sync to YAML
 
@@ -14,11 +14,11 @@ Auto-sync never overwrites a document that currently has YAML parse errors — f
 
 Auto-sync never opens a confirmation dialog. When the file's current formatting differs from what the editor would write — YAML comments, custom key order, extra blank lines and the like — the first sync skips the write and the error banner asks you to press **Apply** once. Applying shows the "YAML will be normalized" confirmation described below; accepting it remembers your choice for that file, and auto-sync then continues normally on later changes. A `#` inside a prompt or command does not trigger this on its own; only a real formatting difference does.
 
-Before every write the pipeline also passes the core pipeline validation (port names, one outgoing edge per port, no cycles, gate field rules); if that fails, the error banner lists the problems and nothing is written.
+Gate field rules — LLM prompt template, endpoint URL, credential and model, tool name, bash command, file paths — do **not** block auto-sync. A gate you have just dropped is written to the YAML file straight away with its fields still empty, so nothing is lost while you configure it. Those rules are reported by **Apply** and **Run**, and they block execution only.
 
 ## Apply
 
-**Apply** (or the IDE *Save All* shortcut) runs the full validation — including gate-specific rules such as LLM prompt template, endpoint URL, credential and model — and writes the YAML immediately. Use it to see the complete list of problems before running the pipeline.
+**Apply** (or the IDE *Save All* shortcut) writes the YAML immediately and then runs the full validation — the core rules (port names, one outgoing edge per port, no cycles) plus the gate-specific rules. Any problems are listed in a "Validation Errors" dialog *after* the file has been written; the file is on disk either way. Use it to see the complete list of problems before running the pipeline. Only an unparsable document or a structural problem (missing pipeline `id`, missing `entry` gate, blank or duplicate gate ids) stops the write.
 
 The first time Apply would change the file's formatting (comments, custom layout), it asks for confirmation because serialisation normalises the YAML ("Applying will normalize the YAML file..."). Cancelling leaves the file untouched; accepting writes the file and remembers the choice for that file, so neither Apply nor auto-sync asks again.
 
@@ -26,4 +26,4 @@ Changing a tool checkbox in the property panel is an ordinary edit: it is picked
 
 ## Run
 
-**Run** first flushes any pending visual edits to the document (the same checks as auto-sync apply) and saves it, then executes the pipeline from the file on disk. If the sync is blocked — parse errors, missing gates, structural problems or a pending normalization confirmation — the error banner shows why and the pipeline is not started. Gate status is shown on the canvas while it runs, and editing is locked until it finishes; running a different pipeline does not lock this editor.
+**Run** first flushes any pending visual edits to the document (the same checks as auto-sync apply) and saves it. If the sync is blocked — parse errors, missing gates, structural problems or a pending normalization confirmation — the error banner shows why and the pipeline is not started. Otherwise the file is written, and the full validation runs: unfinished gates are listed in the same "Validation Errors" dialog Apply shows. The run is started regardless, so the failure is also recorded in the execution log. Gate status is shown on the canvas while it runs, and editing is locked until it finishes; running a different pipeline does not lock this editor.

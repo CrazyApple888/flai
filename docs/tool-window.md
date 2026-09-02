@@ -21,6 +21,28 @@ A row that does **not** parse still appears, so a broken file is never silently 
 Invalid files appear as error rows on every path — plugin startup, the **Refresh** button and the
 automatic reload — because all three go through the same loader.
 
+## Rows with validation problems
+
+A file can parse and still describe a pipeline that cannot run — most often because the visual
+editor already wrote a gate to disk before its fields were filled in (an `llm` gate without an
+endpoint, a `bash` gate without a command), but also for broken edges, an unknown entry gate or a
+cycle. Every rule comes from the core `PipelineValidator`, the same one the runner and the visual
+editor use.
+
+Such a row is marked instead of looking healthy:
+
+- warning icon
+- the pipeline `name` in bold
+- greyed `N issues` (`1 issue` for a single one) in place of the gate count
+- a tooltip listing every issue, one per line
+
+Selecting the row shows the normal input form with a warning block under the header: the warning
+icon and the full list of messages, one per line.
+
+**Run stays available.** The button is not disabled — starting the run fails with the identical
+validator messages in the execution log. This matches the visual editor, which also writes and lets
+you run an incomplete pipeline and reports the problems afterwards.
+
 ## Automatic refresh
 
 The list follows the files on disk without pressing **Refresh**. It is driven by the IDE's virtual
@@ -64,11 +86,20 @@ When a row is restored, the detail panel is refreshed with the new instance — 
 just became invalid switches to the error view immediately, and one that was fixed switches back to
 the input form.
 
-## Detail panel for an invalid file
+Picking a **different** pipeline in the list clears the previous run: the execution log empties and
+the red failure message of the earlier run disappears, so it never shows up under the newly selected
+pipeline. A run in progress is never touched — the reconciliation above re-selects the same row and
+leaves its log and result alone.
 
-Selecting an error row shows a read-only view: warning icon, file name, and the full parser message
-in red. There are no input fields and no Run button. Running an invalid pipeline is blocked in the
-service as well, so neither the tool window nor the editor gutter icon can start one.
+## Detail panel for an unparseable file
+
+Selecting a row that does **not parse** shows a read-only view: warning icon, file name, and the
+full parser message in red. There are no input fields and no Run button. Running an unparseable
+pipeline is blocked in the service as well, so neither the tool window nor the editor gutter icon
+can start one.
+
+A row that parses but has validation problems is different: it keeps the input form and the Run
+button, see [Rows with validation problems](#rows-with-validation-problems).
 
 ## Related
 

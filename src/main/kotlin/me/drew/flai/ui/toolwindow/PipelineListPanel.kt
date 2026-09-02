@@ -129,6 +129,14 @@ class PipelineListPanel(
                 toolTipText = asHtmlMultiline(parseError)
                 return
             }
+            val validationIssues = value.validationIssues
+            if (validationIssues.isNotEmpty()) {
+                icon = AllIcons.General.Warning
+                append(value.name, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
+                append("  ${issueCountLabel(validationIssues.size)}", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)
+                toolTipText = asHtmlMultiline(validationIssues.joinToString("\n"))
+                return
+            }
             icon = FlaiIcons.PIPELINE_FILE
             append(value.name, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES)
             append("  ${value.gateCount} gates", SimpleTextAttributes.GRAYED_SMALL_ATTRIBUTES)

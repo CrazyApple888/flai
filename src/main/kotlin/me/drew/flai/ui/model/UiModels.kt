@@ -6,6 +6,10 @@ import java.nio.file.Path
 /**
  * One row of the pipeline list. A file that failed to parse is still represented, with
  * [parseError] holding the parser message and every pipeline detail left empty.
+ *
+ * [validationIssues] holds the human-readable messages of the validation issues a *parseable*
+ * pipeline still has (unconfigured gates, broken edges, cycles). A file that does not parse has
+ * [parseError] set and no [validationIssues], because there is no pipeline to validate.
  */
 data class UiPipeline(
     val id: PipelineId,
@@ -15,6 +19,7 @@ data class UiPipeline(
     val filePath: Path?,
     val inputSpecs: List<InputFieldSpec>,
     val parseError: String? = null,
+    val validationIssues: List<String> = emptyList(),
 )
 
 data class InputFieldSpec(

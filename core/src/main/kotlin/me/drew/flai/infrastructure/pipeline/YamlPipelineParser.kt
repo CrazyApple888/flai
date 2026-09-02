@@ -105,8 +105,8 @@ class YamlPipelineParser {
             "bash" -> BashGate(
                 id = id,
                 label = label,
-                command = parseRequiredNonBlankString(id, map, "command", "Bash gate"),
-                workingDirectory = parseOptionalNonBlankString(id, map, "workingDirectory", "Bash gate") ?: ".",
+                command = parseRequiredString(id, map, "command", "Bash gate"),
+                workingDirectory = parseOptionalString(id, map, "workingDirectory", "Bash gate") ?: ".",
                 environment = parseStrictStringMap(id, map["environment"], "environment", required = false),
                 timeoutSeconds = parsePositiveInt(id, map["timeoutSeconds"], "timeoutSeconds") ?: 120,
                 failOnNonZeroExit = parseBoolean(id, map["failOnNonZeroExit"], "failOnNonZeroExit") ?: true,
@@ -163,7 +163,11 @@ class YamlPipelineParser {
             .associate { it.key.toString() to it.value.toString() }
     }
 
-    private fun parseRequiredNonBlankString(
+    /**
+     * The key must be present and hold a string; a blank string is accepted so unconfigured gates
+     * round-trip. PipelineValidator reports the blank value before the pipeline runs.
+     */
+    private fun parseRequiredString(
         gateId: GateId,
         map: Map<String, Any>,
         field: String,
@@ -171,27 +175,20 @@ class YamlPipelineParser {
     ): String {
         val value = map[field]
             ?: throw PipelineLoadException("$gateName '${gateId.value}' missing '$field'")
-        val stringValue = value as? String
+        return value as? String
             ?: throw PipelineLoadException("$gateName '${gateId.value}': '$field' must be a string")
-        if (stringValue.isBlank()) {
-            throw PipelineLoadException("$gateName '${gateId.value}': '$field' must not be blank")
-        }
-        return stringValue
     }
 
-    private fun parseOptionalNonBlankString(
+    /** Returns null only when the key is absent; a blank string is returned as-is. */
+    private fun parseOptionalString(
         gateId: GateId,
         map: Map<String, Any>,
         field: String,
         gateName: String,
     ): String? {
         val value = map[field] ?: return null
-        val stringValue = value as? String
+        return value as? String
             ?: throw PipelineLoadException("$gateName '${gateId.value}': '$field' must be a string")
-        if (stringValue.isBlank()) {
-            throw PipelineLoadException("$gateName '${gateId.value}': '$field' must not be blank")
-        }
-        return stringValue
     }
 
     private fun parseStrictStringMap(
@@ -242,11 +239,10 @@ class YamlPipelineParser {
         val m = obj as? Map<String, Any>
             ?: throw PipelineLoadException("LLM gate '${gateId.value}' missing 'endpoint'")
         val params = (m["params"] as? Map<String, Any>)?.toMap() ?: emptyMap()
+        // A missing credentialId and apiKeyVar is accepted here so unconfigured gates round-trip;
+        // PipelineValidator reports it before the pipeline runs.
         val credentialId = m["credentialId"] as? String ?: ""
         val apiKeyVar = m["apiKeyVar"] as? String
-        if (credentialId.isBlank() && apiKeyVar == null) {
-            throw PipelineLoadException("Endpoint must have 'credentialId' or 'apiKeyVar'")
-        }
         val url = m["url"] as? String ?: throw PipelineLoadException("Endpoint missing 'url'")
         return LlmEndpointConfig(
             url = url,

@@ -81,7 +81,7 @@ Layers:
 - `toolwindow/` — `PipelineToolWindowFactory` → `PipelinePanel` (splits list + detail + log); the list auto-refreshes from `repository.watchChanges()` and shows unparseable files as error rows, see [`docs/tool-window.md`](docs/tool-window.md)
 - `editor/FlaiRunLineMarkerContributor` — gutter run icon on `*.flai.yaml` files
 - `editor/FlaiPipelineFileEditor` — the Visual tab: Swing wiring only; observes `VisualPipelineDocumentSync` state and shows dialogs
-- `service/VisualPipelineDocumentSync` — one per open visual editor (created by `FlaiPipelineUiService.createDocumentSync`); owns model↔document sync: debounce, reload on external change, parse guard, structural check, normalize policy, serialize + core validation + write, layout persistence. `SyncPolicy` is the pure decision function
+- `service/VisualPipelineDocumentSync` — one per open visual editor (created by `FlaiPipelineUiService.createDocumentSync`); owns model↔document sync: debounce, reload on external change, parse guard, structural check, normalize policy, serialize + round-trip parse guard + write (gate-field validation runs after the write, via `validateFully()`, and never blocks it), layout persistence. `SyncPolicy` is the pure decision function
 - `visual/VisualPipelineValidator` — model-only checks (blank/duplicate gate ids, entry seq, edge seqs); delegates everything else to core `PipelineValidator`
 - `FlaiPipelineUiService` — owns `StateFlow`s for pipelines, selection, execution state, log rows; calls use cases
 

@@ -148,6 +148,13 @@ class PipelineDetailPanel(
         gbc.weightx = 1.0
         content.add(buildPipelineHeader(pipeline), gbc)
 
+        // Validation problems of a parseable pipeline — Run stays available and fails with the
+        // same messages in the execution log.
+        if (pipeline.validationIssues.isNotEmpty()) {
+            gbc.gridy++
+            content.add(buildValidationWarning(pipeline.validationIssues), gbc)
+        }
+
         // Inputs section header + fields
         if (pipeline.inputSpecs.isNotEmpty()) {
             gbc.gridy++
@@ -257,6 +264,25 @@ class PipelineDetailPanel(
                 })
             }
             add(textPanel)
+            add(Box.createHorizontalGlue())
+        }
+    }
+
+    /** Warning icon plus every validation message, one per line. */
+    private fun buildValidationWarning(validationIssues: List<String>): JPanel {
+        return JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            isOpaque = false
+            border = JBUI.Borders.empty(JBUI.scale(2), 0, JBUI.scale(6), 0)
+            add(JLabel(AllIcons.General.Warning).apply {
+                alignmentY = TOP_ALIGNMENT
+                border = JBUI.Borders.emptyRight(JBUI.scale(8))
+            })
+            add(JBLabel(asHtmlMultiline(validationIssues.joinToString("\n"))).apply {
+                alignmentY = TOP_ALIGNMENT
+                font = font.deriveFont(Font.PLAIN, JBUI.scale(11).toFloat())
+                foreground = VALIDATION_WARNING_COLOR
+            })
             add(Box.createHorizontalGlue())
         }
     }

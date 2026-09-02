@@ -15,7 +15,9 @@ import javax.swing.*
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
-private val GATE_TYPES = listOf("input", "output", "llm", "logic", "tool", "bash", "read-file", "write-file")
+/** Every gate type that can be dragged onto the canvas. [DefaultGateFactory] must handle each one. */
+// todo: get list of available gates from domain
+internal val GATE_TYPES = listOf("input", "output", "llm", "logic", "tool", "bash", "read-file", "write-file")
 
 fun filterGateTypes(query: String, types: List<String>): List<String> {
     if (query.isEmpty()) {

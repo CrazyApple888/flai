@@ -343,7 +343,7 @@ class YamlPipelineSerializerTest {
 
     @Test
     fun `parse BashGate rejects invalid field types`() {
-        assertPipelineLoadFails(bashYaml("command: ''"), "command")
+        assertPipelineLoadFails(bashYaml("command: 123"), "command")
         assertPipelineLoadFails(bashYaml("command: 'printf ok'\nenvironment:\n  FOO: 123"), "environment.FOO")
         assertPipelineLoadFails(bashYaml("command: 'printf ok'\nenvironment: 'FOO=bar'"), "environment")
         assertPipelineLoadFails(bashYaml("command: 'printf ok'\ntimeoutSeconds: 0"), "timeoutSeconds")

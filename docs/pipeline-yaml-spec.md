@@ -104,7 +104,7 @@ If omitted, `{{varName}}` resolves directly from the context key `varName`.
 1. `apiKeyVar` — names a context variable whose value is used as the API key at runtime. Lets a prior `bash` or `read-file` gate supply the key.
 2. `credentialId` — key name looked up in IntelliJ `PasswordSafe` under service `"flai/<credentialId>"`.
 
-Exactly one must be present. Both can be present; `apiKeyVar` takes precedence when its context variable is set.
+The parser accepts an endpoint with neither key so that a half-configured gate can still be saved, but the validator rejects it before the pipeline runs — at least one must be set to run. Both can be present; `apiKeyVar` takes precedence when its context variable is set.
 
 ```yaml
 # Option A: key from a prior gate (e.g. bash gate that runs `cat ~/.secrets/api-key`)
@@ -374,7 +374,7 @@ If `outputMapping` is empty, all tool outputs are written directly to context us
 
 ## Validation
 
-Every pipeline is checked by the core `PipelineValidator` before it runs (IDE, CLI) and before the visual editor writes it. All problems are reported together. Rules:
+Every pipeline is checked by the core `PipelineValidator` before it runs (IDE, CLI). All problems are reported together. The visual editor does not wait for them: it writes the file first and then reports whatever is still unfinished, so a gate you have only just dropped is saved with empty fields. Rules:
 
 - `id` is non-blank; `entry` names an existing gate.
 - Gate keys match `[A-Za-z0-9_.-]+`.

@@ -31,6 +31,7 @@ import me.drew.flai.ui.visual.NodePropertyPanel
 import me.drew.flai.ui.visual.PipelineAutoLayout
 import me.drew.flai.ui.visual.PipelineCanvas
 import me.drew.flai.ui.visual.PipelineCanvasListener
+import me.drew.flai.ui.visual.ValidationError
 import me.drew.flai.ui.visual.VisualNode
 import me.drew.flai.ui.visual.VisualPipelineModel
 import java.awt.BorderLayout
@@ -78,7 +79,7 @@ class FlaiPipelineFileEditor(
     private lateinit var mainSplit: OnePixelSplitter
 
     private val applyBtn = JButton("Apply").apply {
-        toolTipText = "Validate and write visual changes to YAML now"
+        toolTipText = "Write visual changes to YAML now and list remaining problems"
     }
     private val autoLayoutBtn = JButton("Auto-layout").apply {
         toolTipText = "Auto-arrange nodes"
@@ -118,6 +119,12 @@ class FlaiPipelineFileEditor(
 
     private var savedTimer: Timer? = null
     private val pcs = PropertyChangeSupport(this)
+
+    /** Banner text coming from the model ↔ document sync (blocked, error, write failure). */
+    private var syncMessage: String? = null
+
+    /** Banner text of the last failed run of *this* file; cleared as soon as that is no longer true. */
+    private var runFailureMessage: String? = null
 
     init {
         canvas.setListener(object : PipelineCanvasListener {
@@ -283,10 +290,10 @@ class FlaiPipelineFileEditor(
         editorScope.launch(Dispatchers.EDT) {
             sync.syncState.collect { state ->
                 when (state) {
-                    SyncState.Idle -> showError(null)
+                    SyncState.Idle -> showSyncMessage(null)
                     is SyncState.Saved -> showSavedInformer()
-                    is SyncState.Blocked -> showError(state.message)
-                    is SyncState.Error -> showError(state.message)
+                    is SyncState.Blocked -> showSyncMessage(state.message)
+                    is SyncState.Error -> showSyncMessage(state.message)
                 }
             }
         }
@@ -309,19 +316,17 @@ class FlaiPipelineFileEditor(
             combine(service.executionState, service.selectedPipeline) { state, selected ->
                 state to selected
             }.collect { (state, selected) ->
-                if (!isThisFile(selected)) {
-                    setEditingEnabled(true)
-                    return@collect
-                }
-                when (state) {
-                    is ExecutionUiState.Running -> setEditingEnabled(false)
-                    is ExecutionUiState.Failed -> {
-                        setEditingEnabled(true)
-                        showError("Run failed: ${state.reason}")
+                val runsThisFile = isThisFile(selected)
+                // Single source of the run-failure banner: it exists only while this very file is
+                // the selected pipeline and its last run failed. Any other combination clears it.
+                showRunFailure(
+                    if (runsThisFile && state is ExecutionUiState.Failed) {
+                        "Run failed: ${state.reason}"
+                    } else {
+                        null
                     }
-
-                    else -> setEditingEnabled(true)
-                }
+                )
+                setEditingEnabled(!(runsThisFile && state is ExecutionUiState.Running))
             }
         }
 
@@ -353,10 +358,8 @@ class FlaiPipelineFileEditor(
     private fun presentApplyOutcome(outcome: ApplyOutcome) {
         when (outcome) {
             ApplyOutcome.Written -> Unit
-            is ApplyOutcome.ValidationFailed -> {
-                val msg = outcome.errors.joinToString("\n") { "• ${it.gateId} / ${it.field}: ${it.message}" }
-                JOptionPane.showMessageDialog(rootPanel, msg, "Validation Errors", JOptionPane.ERROR_MESSAGE)
-            }
+            is ApplyOutcome.WrittenWithValidationErrors -> showValidationErrors(outcome.errors)
+            is ApplyOutcome.StructureInvalid -> showValidationErrors(outcome.errors)
 
             ApplyOutcome.NeedsNormalizeConfirmation -> {
                 val choice = JOptionPane.showConfirmDialog(
@@ -371,20 +374,34 @@ class FlaiPipelineFileEditor(
                 }
             }
 
-            is ApplyOutcome.WriteFailed -> showError(outcome.message)
+            is ApplyOutcome.WriteFailed -> showSyncMessage(outcome.message)
         }
     }
 
     private fun onRun() {
         when (val decision = sync.flushSync()) {
-            is SyncDecision.Blocked -> showError(decision.message)
-            SyncDecision.Proceed -> service.runFromFile(file.path)
+            is SyncDecision.Blocked -> showSyncMessage(decision.message)
+            SyncDecision.Proceed -> {
+                val result = sync.validateFully()
+                if (!result.isValid) {
+                    showValidationErrors(result.errors)
+                }
+                service.runFromFile(file.path)
+            }
         }
+    }
+
+    private fun showValidationErrors(errors: List<ValidationError>) {
+        val message = errors.joinToString("\n") { "• ${it.gateId} / ${it.field}: ${it.message}" }
+        JOptionPane.showMessageDialog(rootPanel, message, "Validation Errors", JOptionPane.ERROR_MESSAGE)
     }
 
     private fun showSavedInformer() {
         savedTimer?.stop()
-        showError(null)
+        showSyncMessage(null)
+        if (runFailureMessage != null) {
+            return
+        }
         savedBanner.isVisible = true
         savedTimer = Timer(SAVED_BANNER_MILLIS) {
             savedBanner.isVisible = false
@@ -404,10 +421,24 @@ class FlaiPipelineFileEditor(
         canvas.repaint()
     }
 
-    private fun showError(msg: String?) {
-        errorBanner.text = msg ?: ""
-        errorBanner.isVisible = msg != null
-        if (msg != null) {
+    /** Sets (or clears) the sync half of the banner. */
+    private fun showSyncMessage(message: String?) {
+        syncMessage = message
+        refreshErrorBanner()
+    }
+
+    /** Sets (or clears) the run-failure half of the banner, never touching a sync message. */
+    private fun showRunFailure(message: String?) {
+        runFailureMessage = message
+        refreshErrorBanner()
+    }
+
+    /** A sync problem is the more urgent of the two, so it wins over a run failure. */
+    private fun refreshErrorBanner() {
+        val message = syncMessage ?: runFailureMessage
+        errorBanner.text = message ?: ""
+        errorBanner.isVisible = message != null
+        if (message != null) {
             savedTimer?.stop()
             savedBanner.isVisible = false
         }
