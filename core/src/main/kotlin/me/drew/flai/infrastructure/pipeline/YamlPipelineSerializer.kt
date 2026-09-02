@@ -19,7 +19,7 @@ class YamlPipelineSerializer {
         sb.appendLine("entry: ${escapeScalar(pipeline.entryGateId.value)}")
         sb.appendLine("gates:")
         for ((gateId, gate) in pipeline.gates) {
-            sb.appendLine("  ${gateId.value}:")
+            sb.appendLine("  ${escapeScalar(gateId.value)}:")
             appendGate(sb, gate)
         }
         sb.appendLine("edges:")

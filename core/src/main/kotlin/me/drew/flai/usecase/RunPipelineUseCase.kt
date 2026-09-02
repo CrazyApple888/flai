@@ -6,7 +6,7 @@ import me.drew.flai.domain.model.PipelineId
 import me.drew.flai.domain.port.PipelineRepository
 import me.drew.flai.domain.service.ExecutionEvent
 import me.drew.flai.domain.service.PipelineExecutor
-import me.drew.flai.infrastructure.pipeline.PipelineValidator
+import me.drew.flai.domain.service.PipelineValidator
 
 class RunPipelineUseCase(
     private val repository: PipelineRepository,

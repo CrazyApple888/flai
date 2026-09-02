@@ -11,7 +11,6 @@ import javax.swing.*
 
 class NodePropertyPanel(
     private val toolRegistry: DefaultToolRegistry,
-    private val onLlmToolsUpdated: () -> Unit = {},
 ) : JPanel(BorderLayout()) {
 
     private var isEditable: Boolean = true
@@ -53,7 +52,6 @@ class NodePropertyPanel(
             currentModel?.updateGate(nodeSeq, gate)
             canvas?.repaint()
         },
-        onLlmToolsUpdated = onLlmToolsUpdated,
         onRepaint = { canvas?.repaint() },
         onRefreshPanel = {
             val node = currentNode

@@ -1,6 +1,5 @@
-package me.drew.flai.ui.visual
+package me.drew.flai.domain.model
 
-import me.drew.flai.domain.model.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

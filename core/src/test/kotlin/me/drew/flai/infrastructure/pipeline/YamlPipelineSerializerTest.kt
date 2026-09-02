@@ -343,7 +343,7 @@ class YamlPipelineSerializerTest {
 
     @Test
     fun `parse BashGate rejects invalid field types`() {
-        assertPipelineLoadFails(bashYaml("command: ''"), "command")
+        assertPipelineLoadFails(bashYaml("command: 123"), "command")
         assertPipelineLoadFails(bashYaml("command: 'printf ok'\nenvironment:\n  FOO: 123"), "environment.FOO")
         assertPipelineLoadFails(bashYaml("command: 'printf ok'\nenvironment: 'FOO=bar'"), "environment")
         assertPipelineLoadFails(bashYaml("command: 'printf ok'\ntimeoutSeconds: 0"), "timeoutSeconds")
@@ -635,5 +635,25 @@ class YamlPipelineSerializerTest {
                 e.message?.contains(expectedMessagePart) == true,
             )
         }
+    }
+
+    @Test
+    fun `round-trip gate ids that YAML would otherwise treat as non-strings`() {
+        val gates = mapOf<GateId, Gate>(
+            GateId("123") to InputGate(id = GateId("123"), label = "Start"),
+            GateId("true") to OutputGate(id = GateId("true"), label = "End"),
+        )
+        val pipeline = minimalPipeline(
+            gates = gates,
+            edges = listOf(PipelineEdge(from = GateId("123"), to = GateId("true"))),
+            entryGateId = GateId("123"),
+        )
+        val yaml = serializer.serialize(pipeline)
+        assertTrue(yaml.contains("  '123':"))
+        assertTrue(yaml.contains("  'true':"))
+        val result = roundTrip(pipeline)
+        assertEquals(gates.keys, result.gates.keys)
+        assertEquals(GateId("123"), result.entryGateId)
+        assertEquals(pipeline.edges, result.edges)
     }
 }

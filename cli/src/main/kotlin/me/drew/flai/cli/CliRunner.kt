@@ -8,6 +8,7 @@ import me.drew.flai.cli.adapter.EnvCredentialResolver
 import me.drew.flai.cli.adapter.FilePipelineRepository
 import me.drew.flai.domain.model.TraceStatus
 import me.drew.flai.domain.service.ExecutionEvent
+import me.drew.flai.domain.service.PipelineValidator
 import me.drew.flai.infrastructure.executor.CoroutinePipelineExecutor
 import me.drew.flai.infrastructure.executor.DefaultBashGateExecutor
 import me.drew.flai.infrastructure.executor.DefaultInputGateExecutor
@@ -19,7 +20,6 @@ import me.drew.flai.infrastructure.executor.DefaultToolGateExecutor
 import me.drew.flai.infrastructure.executor.DefaultWriteFileGateExecutor
 import me.drew.flai.infrastructure.executor.SkillLoader
 import me.drew.flai.infrastructure.llm.HttpLlmClient
-import me.drew.flai.infrastructure.pipeline.PipelineValidator
 import me.drew.flai.infrastructure.pipeline.YamlPipelineParser
 import me.drew.flai.infrastructure.template.SimpleTemplateRenderer
 import me.drew.flai.infrastructure.tool.DefaultToolRegistry

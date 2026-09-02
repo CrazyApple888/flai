@@ -21,6 +21,29 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.UIManager
 
+/**
+ * Wraps [message] in HTML so its line breaks survive in a Swing label or tooltip, which otherwise
+ * collapse newlines. Used for multi-line YAML parser messages.
+ */
+internal fun asHtmlMultiline(message: String): String {
+    val escaped = message
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\n", "<br/>")
+    return "<html>$escaped</html>"
+}
+
+/** Singular/plural suffix for a row that has validation problems: `1 issue` / `N issues`. */
+internal fun issueCountLabel(count: Int): String = if (count == 1) {
+    "1 issue"
+} else {
+    "$count issues"
+}
+
+/** Warning colour of the validation-issue block; readable on both the light and the dark theme. */
+internal val VALIDATION_WARNING_COLOR = JBColor(0xB26A00, 0xE0A040)
+
 internal fun roundedWrapper(child: JComponent): JPanel {
     val margin = JBUI.scale(8)
     val radius = JBUI.scale(8)

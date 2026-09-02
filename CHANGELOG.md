@@ -4,6 +4,29 @@
 
 ## [Unreleased]
 
+## [0.6.1]
+### Added
+- Tool window: the pipeline list now follows the files in `.flai/` on disk — files created, saved, renamed, moved or deleted show up without pressing Refresh (debounced, silent, never interrupts a run).
+- Visual editor: changes are now written to the pipeline YAML automatically (debounced) and saved to disk; `Apply` remains for full validation.
+- Visual editor: empty pipeline files get a pipeline `id`/`name` derived from the file name, and the first dropped gate becomes the `entry` gate.
+- Tool window: a pipeline that parses but fails validation (for example a gate the visual editor wrote before it was configured) is marked in the list with a warning icon, an `N issues` label and a tooltip listing every problem, and the detail panel shows the same list above the inputs. Run stays available and reports the problems in the execution log.
+
+### Changed
+- Pipeline validation unified in core `PipelineValidator` (used by runner, CLI and visual editor): gate field rules, port/edge checks, one edge per output port, cycles. The runner now rejects pipelines the editor would reject and vice versa.
+- Visual editor sync moved out of the file editor into `VisualPipelineDocumentSync`; node layout and preferences are infrastructure adapters.
+
+### Fixed
+- Visual editor: auto-sync no longer fails with "Access is allowed from write thread only" when saving the document.
+- The "run failed" message of an earlier run no longer sticks around after selecting another pipeline: switching pipelines clears the execution log and result in the tool window and hides the visual editor's run-failure banner. A run in progress is never interrupted.
+- Visual editor: a gate dropped on the canvas is now saved to the YAML file immediately, before its fields are filled in. Gate field rules (LLM prompt/endpoint, tool name, bash command, file paths) are reported by Apply and Run instead of blocking the write, and the parser accepts the half-configured YAML the editor writes.
+- Visual editor: new pipeline files could not be applied or run because the pipeline had no `id` and no `entry`.
+- Visual editor: Run now flushes pending visual edits before running instead of discarding them.
+- Visual editor: a `#` inside a prompt or command no longer blocks auto-sync with a bogus "YAML comments" warning; the normalize confirmation only appears when writing would actually reformat the file.
+- Visual editor: saving no longer wipes undo history or stale-selects nodes when a save-time formatter touches the document.
+- Visual editor: running one pipeline no longer locks every open visual editor.
+- Visual editor: toggling an LLM tool checkbox no longer opens the full Apply validation dialog.
+- Pipeline repository: a pipeline id like `foo.flai` no longer resolves to `foo.flai.yaml`; file name matching is case-insensitive.
+
 ## [0.6.0]
 ### Added
 - LLM gates can allow registered tools and run iterative tool-call conversations with OpenAI and Anthropic endpoints, with a configurable maximum number of tool rounds.

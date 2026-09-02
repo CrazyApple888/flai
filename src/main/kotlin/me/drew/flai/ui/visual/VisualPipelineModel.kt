@@ -28,6 +28,21 @@ class VisualPipelineModel {
     var isDirty: Boolean = false
         private set
 
+    /** Invoked synchronously after every mutation that marks the model dirty. */
+    var onChanged: (() -> Unit)? = null
+
+    private fun markDirty() {
+        isDirty = true
+        onChanged?.invoke()
+    }
+
+    fun setPipelineMetadata(id: String, name: String, description: String = pipelineDescription) {
+        pipelineId = id
+        pipelineName = name
+        pipelineDescription = description
+        markDirty()
+    }
+
     private val undoStack: ArrayDeque<UndoableEdit> = ArrayDeque()
     private var nextSeq: Int = 0
     fun nextNodeSeq(): Int = nextSeq++
@@ -38,7 +53,7 @@ class VisualPipelineModel {
 
     fun setEntry(seq: Int) {
         entryNodeSeq = seq
-        isDirty = true
+        markDirty()
     }
 
     fun nodeBySeq(seq: Int): VisualNode? = _nodes.firstOrNull { it.nodeSeq == seq }
@@ -49,8 +64,11 @@ class VisualPipelineModel {
         val seq = nextNodeSeq()
         val node = VisualNode(nodeSeq = seq, gateId = gate.id.value, gate = gate, x = x, y = y)
         _nodes.add(node)
+        if (entryNodeSeq == -1) {
+            entryNodeSeq = seq
+        }
         undoStack.addLast(UndoableEdit.NodeAdded(node))
-        isDirty = true
+        markDirty()
         return node
     }
 
@@ -61,10 +79,10 @@ class VisualPipelineModel {
         _nodes.removeAll { it.nodeSeq == seq }
         _edges.removeAll { it.fromSeq == seq || it.toSeq == seq }
         if (wasEntry) {
-            entryNodeSeq = -1
+            entryNodeSeq = _nodes.firstOrNull()?.nodeSeq ?: -1
         }
         undoStack.addLast(UndoableEdit.NodeRemoved(node, removedEdges, wasEntry))
-        isDirty = true
+        markDirty()
     }
 
     /** Returns false if newId is empty or already used by another gate. */
@@ -80,9 +98,9 @@ class VisualPipelineModel {
             return false
         }
         val node = _nodes[idx]
-        val rebuiltGate = rebuildGateWithId(node.gate, GateId(newId))
+        val rebuiltGate = node.gate.withId(GateId(newId))
         _nodes[idx] = node.copy(gateId = newId, gate = rebuiltGate)
-        isDirty = true
+        markDirty()
         return true
     }
 
@@ -99,7 +117,7 @@ class VisualPipelineModel {
         }
         _edges.add(edge)
         undoStack.addLast(UndoableEdit.EdgeAdded(edge))
-        isDirty = true
+        markDirty()
         return true
     }
 
@@ -112,7 +130,7 @@ class VisualPipelineModel {
         }
         if (removed) {
             undoStack.addLast(UndoableEdit.EdgeRemoved(edge))
-            isDirty = true
+            markDirty()
         }
     }
 
@@ -143,7 +161,7 @@ class VisualPipelineModel {
                 _edges.add(edit.edge)
             }
         }
-        isDirty = true
+        markDirty()
         return true
     }
 
@@ -157,7 +175,7 @@ class VisualPipelineModel {
             return
         }
         _nodes[idx] = _nodes[idx].copy(x = x, y = y)
-        isDirty = true
+        markDirty()
     }
 
     fun updateGate(seq: Int, gate: Gate) {
@@ -166,7 +184,7 @@ class VisualPipelineModel {
             return
         }
         _nodes[idx] = _nodes[idx].copy(gate = gate, gateId = gate.id.value)
-        isDirty = true
+        markDirty()
     }
 
     fun replaceWith(other: VisualPipelineModel) {
@@ -206,17 +224,6 @@ class VisualPipelineModel {
             edges = pipelineEdges,
             entryGateId = entryGateId,
         )
-    }
-
-    private fun rebuildGateWithId(gate: Gate, newId: GateId): Gate = when (gate) {
-        is InputGate -> gate.copy(id = newId)
-        is OutputGate -> gate.copy(id = newId)
-        is LlmGate -> gate.copy(id = newId)
-        is LogicGate -> gate.copy(id = newId)
-        is ToolGate -> gate.copy(id = newId)
-        is BashGate -> gate.copy(id = newId)
-        is ReadFileGate -> gate.copy(id = newId)
-        is WriteFileGate -> gate.copy(id = newId)
     }
 
     companion object {

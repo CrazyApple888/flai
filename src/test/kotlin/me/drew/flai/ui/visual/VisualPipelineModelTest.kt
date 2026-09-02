@@ -175,13 +175,117 @@ class VisualPipelineModelTest {
     }
 
     @Test
-    fun `removeNode clears entryNodeSeq when entry gate is removed`() {
+    fun `removeNode reassigns entry when entry gate is removed`() {
         val model = makeModel(inputGate("g1"), outputGate("g2"))
         val g1Seq = model.nodes[0].nodeSeq
+        val g2Seq = model.nodes[1].nodeSeq
         model.setEntry(g1Seq)
 
         model.removeNode(g1Seq)
 
+        assertEquals(g2Seq, model.entryNodeSeq)
+    }
+
+    @Test
+    fun `onChanged fires for every mutation`() {
+        val model = makeModel(inputGate("g1"), outputGate("g2"))
+        var count = 0
+        model.onChanged = { count++ }
+        val g1Seq = model.nodes[0].nodeSeq
+        val g2Seq = model.nodes[1].nodeSeq
+
+        model.addNode(inputGate("g3"), 0, 0)
+        assertEquals(1, count)
+        model.moveNode(g1Seq, 10, 10)
+        assertEquals(2, count)
+        model.addEdge(VisualEdge(fromSeq = g1Seq, toSeq = g2Seq))
+        assertEquals(3, count)
+        model.removeEdge(VisualEdge(fromSeq = g1Seq, toSeq = g2Seq))
+        assertEquals(4, count)
+        model.renameGateId(g1Seq, "g1b")
+        assertEquals(5, count)
+        model.updateGate(g2Seq, outputGate("g2"))
+        assertEquals(6, count)
+        model.setEntry(g2Seq)
+        assertEquals(7, count)
+        model.setPipelineMetadata("p", "P")
+        assertEquals(8, count)
+        model.removeNode(g2Seq)
+        assertEquals(9, count)
+        model.undo()
+        assertEquals(10, count)
+    }
+
+    @Test
+    fun `onChanged does not fire from fromPipeline or replaceWith`() {
+        val model = makeModel(inputGate("g1"))
+        var count = 0
+        model.onChanged = { count++ }
+        model.replaceWith(makeModel(inputGate("other")))
+        assertEquals(0, count)
+        assertFalse(model.isDirty)
+    }
+
+    @Test
+    fun `setPipelineMetadata updates fields and marks dirty`() {
+        val model = makeModel(inputGate("g1"))
+        model.setPipelineMetadata("new-id", "New Name", "desc")
+        assertEquals("new-id", model.pipelineId)
+        assertEquals("New Name", model.pipelineName)
+        assertEquals("desc", model.pipelineDescription)
+        assertTrue(model.isDirty)
+        assertEquals("new-id", model.toPipeline().id.value)
+    }
+
+    @Test
+    fun `setPipelineMetadata keeps description by default`() {
+        val model = makeModel(inputGate("g1"))
+        model.setPipelineMetadata("a", "A", "keep me")
+        model.setPipelineMetadata("b", "B")
+        assertEquals("keep me", model.pipelineDescription)
+    }
+
+    @Test
+    fun `first added node becomes entry when model has no entry`() {
+        val model = VisualPipelineModel()
         assertEquals(-1, model.entryNodeSeq)
+        val first = model.addNode(inputGate("g1"), 0, 0)
+        assertEquals(first.nodeSeq, model.entryNodeSeq)
+        model.addNode(outputGate("g2"), 0, 0)
+        assertEquals(first.nodeSeq, model.entryNodeSeq)
+    }
+
+    @Test
+    fun `fromPipeline still honours explicit entry after auto-entry`() {
+        val pipeline = Pipeline(
+            id = PipelineId("t"),
+            name = "T",
+            gates = mapOf(GateId("a") to inputGate("a"), GateId("b") to outputGate("b")),
+            edges = emptyList(),
+            entryGateId = GateId("b"),
+        )
+        val model = VisualPipelineModel.fromPipeline(pipeline)
+        assertEquals(model.nodeByGateId("b")!!.nodeSeq, model.entryNodeSeq)
+    }
+
+    @Test
+    fun `removing entry node reassigns entry to first remaining node`() {
+        val model = makeModel(inputGate("g1"), outputGate("g2"))
+        val g1Seq = model.nodes[0].nodeSeq
+        val g2Seq = model.nodes[1].nodeSeq
+        assertEquals(g1Seq, model.entryNodeSeq)
+        model.removeNode(g1Seq)
+        assertEquals(g2Seq, model.entryNodeSeq)
+        model.removeNode(g2Seq)
+        assertEquals(-1, model.entryNodeSeq)
+    }
+
+    @Test
+    fun `undo of entry node removal restores it as entry`() {
+        val model = makeModel(inputGate("g1"), outputGate("g2"))
+        val g1Seq = model.nodes[0].nodeSeq
+        model.removeNode(g1Seq)
+        model.undo()
+        assertEquals(g1Seq, model.entryNodeSeq)
     }
 }

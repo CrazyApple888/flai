@@ -16,7 +16,7 @@ class PipelinePanel(
 
     private val detailPanel = PipelineDetailPanel(service, parentDisposable)
 
-    private val listPanel = PipelineListPanel(service, parentDisposable) { selected: UiPipeline ->
+    private val listPanel = PipelineListPanel(service, parentDisposable) { selected: UiPipeline? ->
         detailPanel.showPipeline(selected)
     }
 

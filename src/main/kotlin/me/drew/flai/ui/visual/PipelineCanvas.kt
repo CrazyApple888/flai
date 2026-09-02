@@ -376,31 +376,12 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
                 }
                 val dropPoint = support.dropLocation.dropPoint
                 val modelPt = inversePoint(dropPoint.x, dropPoint.y)
-                val gate = createDefaultGate(gateType) ?: return false
+                val gate = DefaultGateFactory.create(gateType, DefaultGateFactory.newGateId(gateType))
+                    ?: return false
                 model.addNode(gate, modelPt.x.toInt(), modelPt.y.toInt())
                 repaint()
                 return true
             }
-        }
-    }
-
-    private fun createDefaultGate(gateType: String): Gate? {
-        val id = GateId(gateType + "_" + System.currentTimeMillis().toString().takeLast(4))
-        return when (gateType) {
-            "input" -> InputGate(id = id, label = "Input")
-            "output" -> OutputGate(id = id, label = "Output")
-            "llm" -> LlmGate(
-                id = id,
-                label = "LLM",
-                promptTemplate = "",
-                endpointConfig = LlmEndpointConfig(url = "", credentialId = "", model = ""),
-            )
-            "logic" -> LogicGate(id = id, label = "Logic", branches = emptyList(), defaultPort = "default")
-            "tool" -> ToolGate(id = id, label = "Tool", toolName = "")
-            "bash" -> BashGate(id = id, label = "Bash", command = "printf hello")
-            "read-file" -> ReadFileGate(id = id, label = "Read File", path = "", outputKey = "content")
-            "write-file" -> WriteFileGate(id = id, label = "Write File", path = "", contentKey = "content")
-            else -> null
         }
     }
 
@@ -655,6 +636,14 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
     }
 
     fun getSelectedNode(): VisualNode? = model.nodeBySeq(selectedNodeSeq)
+
+    /** Drops node and edge selection, e.g. after the model was replaced from the document. */
+    fun clearSelection() {
+        selectedNodeSeq = -1
+        selectedEdge = null
+        _listener?.onNodeSelected(null)
+        repaint()
+    }
 
     fun getViewTransform(): java.awt.geom.AffineTransform = AffineTransform(transform)
 

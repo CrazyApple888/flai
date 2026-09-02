@@ -48,7 +48,19 @@ class PipelineDetailPanel(
         showEmpty()
     }
 
-    fun showPipeline(pipeline: UiPipeline) {
+    /**
+     * Shows [pipeline]: the empty state when it is `null`, the parse-error view when the file
+     * does not parse, and the input form plus Run button otherwise.
+     */
+    fun showPipeline(pipeline: UiPipeline?) {
+        if (pipeline == null) {
+            showEmpty()
+            return
+        }
+        if (pipeline.parseError != null) {
+            showParseError(pipeline)
+            return
+        }
         currentPipeline = pipeline
         val retained = service.getSavedInputValues(pipeline.id)
         inputValues.clear()
@@ -60,6 +72,9 @@ class PipelineDetailPanel(
     }
 
     private fun showEmpty() {
+        currentPipeline = null
+        executionStateJob?.cancel()
+        executionStateJob = null
         inputsContainer.removeAll()
         val emptyPanel = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -81,6 +96,44 @@ class PipelineDetailPanel(
         inputsContainer.repaint()
     }
 
+    /** Read-only view for a pipeline file that does not parse: file name plus the parser message. */
+    private fun showParseError(pipeline: UiPipeline) {
+        currentPipeline = null
+        executionStateJob?.cancel()
+        executionStateJob = null
+        inputValues.clear()
+
+        val content = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
+            border = JBUI.Borders.empty(JBUI.scale(8))
+            add(JPanel().apply {
+                layout = BoxLayout(this, BoxLayout.X_AXIS)
+                isOpaque = false
+                alignmentX = LEFT_ALIGNMENT
+                add(JLabel(AllIcons.General.Warning).apply {
+                    border = JBUI.Borders.emptyRight(JBUI.scale(8))
+                })
+                add(JBLabel(pipeline.name).apply {
+                    font = font.deriveFont(Font.BOLD, JBUI.scale(13).toFloat())
+                })
+                add(Box.createHorizontalGlue())
+            })
+            add(Box.createVerticalStrut(JBUI.scale(8)))
+            add(JBLabel(asHtmlMultiline(pipeline.parseError ?: "")).apply {
+                alignmentX = LEFT_ALIGNMENT
+                foreground = JBColor.RED
+                font = font.deriveFont(Font.PLAIN, JBUI.scale(11).toFloat())
+            })
+            add(Box.createVerticalGlue())
+        }
+
+        inputsContainer.removeAll()
+        inputsContainer.add(roundedWrapper(JBScrollPane(content)), BorderLayout.CENTER)
+        inputsContainer.revalidate()
+        inputsContainer.repaint()
+    }
+
     private fun rebuildInputs(pipeline: UiPipeline) {
         val content = JPanel(GridBagLayout())
         val gbc = GridBagConstraints().apply {
@@ -94,6 +147,13 @@ class PipelineDetailPanel(
         gbc.gridwidth = 2
         gbc.weightx = 1.0
         content.add(buildPipelineHeader(pipeline), gbc)
+
+        // Validation problems of a parseable pipeline — Run stays available and fails with the
+        // same messages in the execution log.
+        if (pipeline.validationIssues.isNotEmpty()) {
+            gbc.gridy++
+            content.add(buildValidationWarning(pipeline.validationIssues), gbc)
+        }
 
         // Inputs section header + fields
         if (pipeline.inputSpecs.isNotEmpty()) {
@@ -204,6 +264,25 @@ class PipelineDetailPanel(
                 })
             }
             add(textPanel)
+            add(Box.createHorizontalGlue())
+        }
+    }
+
+    /** Warning icon plus every validation message, one per line. */
+    private fun buildValidationWarning(validationIssues: List<String>): JPanel {
+        return JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.X_AXIS)
+            isOpaque = false
+            border = JBUI.Borders.empty(JBUI.scale(2), 0, JBUI.scale(6), 0)
+            add(JLabel(AllIcons.General.Warning).apply {
+                alignmentY = TOP_ALIGNMENT
+                border = JBUI.Borders.emptyRight(JBUI.scale(8))
+            })
+            add(JBLabel(asHtmlMultiline(validationIssues.joinToString("\n"))).apply {
+                alignmentY = TOP_ALIGNMENT
+                font = font.deriveFont(Font.PLAIN, JBUI.scale(11).toFloat())
+                foreground = VALIDATION_WARNING_COLOR
+            })
             add(Box.createHorizontalGlue())
         }
     }

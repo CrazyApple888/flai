@@ -9,27 +9,39 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.vfs.VirtualFile
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import me.drew.flai.domain.model.InputGate
+import me.drew.flai.domain.model.Pipeline
 import me.drew.flai.domain.model.PipelineId
 import me.drew.flai.domain.model.TraceStatus
 import me.drew.flai.domain.service.ExecutionEvent
+import me.drew.flai.domain.service.PipelineValidator
 import me.drew.flai.infrastructure.credential.PasswordSafeCredentialResolver
 import me.drew.flai.infrastructure.executor.*
+import me.drew.flai.infrastructure.layout.FileLayoutStore
+import me.drew.flai.infrastructure.layout.LayoutSidecarLocator
 import me.drew.flai.infrastructure.llm.HttpLlmClient
-import me.drew.flai.infrastructure.pipeline.PipelineValidator
+import me.drew.flai.infrastructure.pipeline.PipelineFileNames
 import me.drew.flai.infrastructure.pipeline.YamlPipelineParser
 import me.drew.flai.infrastructure.pipeline.YamlPipelineRepository
-import me.drew.flai.infrastructure.pipeline.isPipelineFileName
+import me.drew.flai.infrastructure.pipeline.YamlPipelineSerializer
+import me.drew.flai.infrastructure.preferences.VisualEditorPreferences
 import me.drew.flai.infrastructure.template.SimpleTemplateRenderer
 import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import me.drew.flai.ui.model.*
 import me.drew.flai.usecase.RunPipelineUseCase
 import java.io.File
+import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -37,6 +49,96 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private val LOG = logger<FlaiPipelineUiService>()
 private const val AUTO_HIDE_MILLIS = 4000L
+
+private val WATCH_DEBOUNCE = 300.milliseconds
+
+/**
+ * Builds the list row for a pipeline file that failed to parse: the file name without its
+ * pipeline extension is shown as the name, the pipeline details stay empty and [errorMessage]
+ * is carried in [UiPipeline.parseError].
+ */
+internal fun toParseErrorEntry(fileName: String, filePath: Path?, errorMessage: String?): UiPipeline =
+    UiPipeline(
+        id = PipelineId(PipelineFileNames.defaultPipelineIdFor(fileName)),
+        name = PipelineFileNames.stripExtension(fileName),
+        description = "",
+        gateCount = 0,
+        filePath = filePath,
+        inputSpecs = emptyList(),
+        parseError = errorMessage ?: "Unknown parse error",
+    )
+
+/**
+ * Picks the row that should stay selected after a reload: the same pipeline id when it is still
+ * present, otherwise the row for the same file path, otherwise `null` (selection cleared).
+ */
+internal fun reconcileSelection(pipelines: List<UiPipeline>, previous: UiPipeline?): UiPipeline? {
+    if (previous == null) {
+        return null
+    }
+    return pipelines.firstOrNull { it.id == previous.id }
+        ?: pipelines.firstOrNull { it.filePath != null && it.filePath == previous.filePath }
+}
+
+/**
+ * True when [previous] and [next] denote the same pipeline: the same id, or — when the id changed
+ * in the file — the same non-null file path. Mirrors the matching rules of [reconcileSelection]
+ * instead of data-class equality, so a reloaded row with a fresh gate count or fresh validation
+ * issues still counts as the same pipeline.
+ */
+private fun isSamePipeline(previous: UiPipeline, next: UiPipeline): Boolean {
+    return previous.id == next.id || previous.filePath != null && previous.filePath == next.filePath
+}
+
+/**
+ * Decides whether selecting [next] must drop the previous run's log and result. It must when the
+ * selection moves to a different pipeline than [previous], so a stale "run failed" message never
+ * shows up under a freshly selected pipeline. A run in progress is never touched.
+ */
+internal fun shouldClearExecutionResult(
+    previous: UiPipeline?,
+    next: UiPipeline,
+    state: ExecutionUiState,
+): Boolean {
+    if (state is ExecutionUiState.Running) {
+        return false
+    }
+    if (previous == null) {
+        return true
+    }
+    return !isSamePipeline(previous, next)
+}
+
+/**
+ * Maps a parsed [pipeline] to its list row. Pure: no project, no IO — [validator] only inspects
+ * the model. [filePath] is the file the pipeline was read from.
+ */
+internal fun toUiPipeline(
+    pipeline: Pipeline,
+    filePath: Path?,
+    validator: PipelineValidator,
+): UiPipeline {
+    val inputSpecs = (pipeline.gates[pipeline.entryGateId] as? InputGate)
+        ?.inputSchema
+        ?.map { field ->
+            InputFieldSpec(
+                key = field.name,
+                label = field.name,
+                defaultValue = field.default ?: "",
+                required = field.required,
+            )
+        } ?: emptyList()
+
+    return UiPipeline(
+        id = pipeline.id,
+        name = pipeline.name,
+        description = pipeline.description,
+        gateCount = pipeline.gates.size,
+        filePath = filePath,
+        inputSpecs = inputSpecs,
+        validationIssues = validator.collectIssues(pipeline).map { issue -> issue.message },
+    )
+}
 
 /**
  * Merges [retained] values over spec defaults. Only keys present in [specs] are included;
@@ -109,6 +211,35 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
 
     private val savedInputs: ConcurrentHashMap<PipelineId, Map<String, String>> = ConcurrentHashMap()
 
+    /** Serializes [reloadPipelines] so the list and the selection can never come from different loads. */
+    private val reloadMutex = Mutex()
+
+    init {
+        startWatchingPipelineFiles()
+    }
+
+    /**
+     * Reloads the list silently whenever the pipeline files change on disk. Bursts of virtual
+     * file-system events collapse into one reload via [WATCH_DEBOUNCE]; a failed reload is logged
+     * and the collector keeps running.
+     */
+    @OptIn(FlowPreview::class)
+    private fun startWatchingPipelineFiles() {
+        serviceScope.launch {
+            repository.watchChanges()
+                .debounce(WATCH_DEBOUNCE)
+                .collect {
+                    try {
+                        reloadPipelines(notify = false)
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (exception: Exception) {
+                        LOG.warn("Flai: automatic pipeline reload failed", exception)
+                    }
+                }
+        }
+    }
+
     fun saveInputValues(pipelineId: PipelineId, values: Map<String, String>) {
         savedInputs[pipelineId] = values.toMap()
     }
@@ -132,18 +263,37 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         }
     }
 
+    /** Manual refresh: saves open documents, refreshes the VFS and reports the result. */
     fun refresh() {
         serviceScope.launch {
             try {
                 saveAllDocumentsOnEdt()
                 repository.refreshVfs()
-                val uiPipelines = loadAllWithPaths()
-                _pipelines.value = uiPipelines
-                notifyReloaded(uiPipelines.size)
+                reloadPipelines(notify = true)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 LOG.error("Pipeline refresh failed", e)
+            }
+        }
+    }
+
+    /**
+     * Reloads every pipeline file into [pipelines] and reconciles the selection with the fresh
+     * rows. Shows the "reloaded" balloon only when [notify] is true, so automatic reloads stay silent.
+     *
+     * Held under [reloadMutex] because a manual [refresh] and the file watcher launch independently
+     * on [serviceScope]. Without it two reloads can interleave and publish a list from one load while
+     * reconciling the selection against the other, leaving the detail panel on a row the list no
+     * longer contains.
+     */
+    private suspend fun reloadPipelines(notify: Boolean) {
+        reloadMutex.withLock {
+            val uiPipelines = loadAllWithPaths()
+            _pipelines.value = uiPipelines
+            _selectedPipeline.update { previous -> reconcileSelection(uiPipelines, previous) }
+            if (notify) {
+                notifyReloaded(uiPipelines.size)
             }
         }
     }
@@ -164,17 +314,51 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         }
     }
 
+    /**
+     * Publishes [pipeline] as the selected row. Moving to a different pipeline while nothing is
+     * running also drops the previous run's log and result, so the red failure message of an
+     * earlier run does not reappear under the newly selected pipeline.
+     *
+     * Reload reconciliation goes through [reconcileSelection] instead and deliberately keeps the
+     * execution result: re-selecting the same row after a file change is not a selection change.
+     */
     fun selectPipeline(pipeline: UiPipeline) {
+        if (shouldClearExecutionResult(_selectedPipeline.value, pipeline, _executionState.value)) {
+            _logRows.value = emptyList()
+            _executionState.value = ExecutionUiState.Idle
+        }
         _selectedPipeline.value = pipeline
     }
 
+    /**
+     * Creates the model ↔ document sync coordinator for one visual editor of [file].
+     * The coordinator is disposed together with [parent].
+     */
+    fun createDocumentSync(file: VirtualFile, parent: Disposable): VisualPipelineDocumentSync {
+        val sync = VisualPipelineDocumentSync(
+            project = project,
+            file = file,
+            document = FileDocumentManager.getInstance().getDocument(file),
+            parser = parser,
+            serializer = YamlPipelineSerializer(),
+            validator = validator,
+            layoutStore = FileLayoutStore(LayoutSidecarLocator.sidecarFor(project, file)),
+            preferences = VisualEditorPreferences(project),
+        )
+        Disposer.register(parent, sync)
+        return sync
+    }
+
     fun run(pipeline: UiPipeline, inputs: Map<String, String>) {
-        if (_executionState.value is ExecutionUiState.Running) {
+        if (pipeline.parseError != null) {
+            LOG.warn("Flai: refusing to run '${pipeline.name}' — the file does not parse")
+            return
+        }
+        if (!claimRunning()) {
             return
         }
         _selectedPipeline.value = pipeline
         _logRows.value = emptyList()
-        _executionState.value = ExecutionUiState.Running
 
         runningJob = serviceScope.launch {
             runUseCase.invoke(pipeline.id, inputs)
@@ -187,22 +371,42 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         }
     }
 
+    /** Atomically moves the execution state to Running; false when a run is already in progress. */
+    private fun claimRunning(): Boolean {
+        while (true) {
+            val current = _executionState.value
+            if (current is ExecutionUiState.Running) {
+                return false
+            }
+            if (_executionState.compareAndSet(current, ExecutionUiState.Running)) {
+                return true
+            }
+        }
+    }
+
     /** Called from gutter action — loads by file path, selects in list, runs with defaults. */
     fun runFromFile(filePath: String) {
         serviceScope.launch {
             // Try to find already-loaded pipeline first
-            var pipeline = _pipelines.value.firstOrNull { it.filePath?.toString() == filePath }
+            val loaded = _pipelines.value.firstOrNull { it.filePath?.toString() == filePath }
 
             // Not loaded yet — parse directly from file
-            if (pipeline == null) {
-                pipeline = runCatching { toUiPipelineFromFile(File(filePath)) }.getOrNull()
+            val pipeline = loaded
+                ?: runCatching { toUiPipelineFromFile(File(filePath)) }.getOrNull()
+                ?: return@launch
+
+            if (pipeline.parseError != null) {
+                LOG.warn("Flai: refusing to run '$filePath' — the file does not parse")
+                return@launch
             }
 
-            pipeline ?: return@launch
-
-            // Ensure it's in the list
-            if (_pipelines.value.none { it.id == pipeline.id }) {
-                _pipelines.value = _pipelines.value + pipeline
+            // Ensure it's in the list, matching on the file it came from
+            _pipelines.update { current ->
+                if (current.any { it.filePath == pipeline.filePath }) {
+                    current
+                } else {
+                    current + pipeline
+                }
             }
 
             val inputs = mergeInputs(pipeline.inputSpecs, getSavedInputValues(pipeline.id))
@@ -274,39 +478,19 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         if (!dir.exists()) {
             return@withContext emptyList()
         }
-        val files = dir.listFiles { file -> file.isFile && isPipelineFileName(file.name) }
+        val files = dir.listFiles { file -> file.isFile && PipelineFileNames.isPipelineFileName(file.name) }
             ?: return@withContext emptyList()
         LOG.info("Flai: found ${files.size} pipeline file(s) in ${dir.absolutePath}")
-        files.mapNotNull { file ->
+        files.sortedBy { file -> file.name.lowercase() }.map { file ->
             runCatching { toUiPipelineFromFile(file) }.getOrElse { e ->
                 LOG.warn("Flai: failed to load pipeline from ${file.name}: ${e.message}", e)
-                null
+                toParseErrorEntry(file.name, file.toPath(), e.message)
             }
         }
     }
 
-    private fun toUiPipelineFromFile(file: File): UiPipeline {
-        val pipeline = parser.parse(file.readText())
-        val inputSpecs = (pipeline.gates[pipeline.entryGateId] as? InputGate)
-            ?.inputSchema
-            ?.map { field ->
-                InputFieldSpec(
-                    key = field.name,
-                    label = field.name,
-                    defaultValue = field.default ?: "",
-                    required = field.required,
-                )
-            } ?: emptyList()
-
-        return UiPipeline(
-            id = pipeline.id,
-            name = pipeline.name,
-            description = pipeline.description,
-            gateCount = pipeline.gates.size,
-            filePath = file.toPath(),
-            inputSpecs = inputSpecs,
-        )
-    }
+    private fun toUiPipelineFromFile(file: File): UiPipeline =
+        toUiPipeline(parser.parse(file.readText()), file.toPath(), validator)
 
     override fun dispose() {
         serviceScope.cancel()
