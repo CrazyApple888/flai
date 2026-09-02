@@ -4,6 +4,7 @@ import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.event.DocumentEvent
@@ -125,7 +126,7 @@ class FlaiPipelineFileEditor(
             debounceJob?.cancel()
             debounceJob = editorScope.launch {
                 delay(300)
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.EDT) {
                     reloadFromDocument()
                 }
             }
@@ -344,7 +345,7 @@ class FlaiPipelineFileEditor(
         autoSyncJob?.cancel()
         autoSyncJob = editorScope.launch {
             delay(AUTO_SYNC_DEBOUNCE_MS)
-            withContext(Dispatchers.Main) {
+            withContext(Dispatchers.EDT) {
                 autoSync()
             }
         }
