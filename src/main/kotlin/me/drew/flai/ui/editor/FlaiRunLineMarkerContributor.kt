@@ -3,13 +3,13 @@ package me.drew.flai.ui.editor
 import com.intellij.execution.lineMarker.RunLineMarkerContributor
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
-import me.drew.flai.infrastructure.pipeline.isPipelineFileName
+import me.drew.flai.infrastructure.pipeline.PipelineFileNames
 import me.drew.flai.ui.actions.RunPipelineAction
 
 class FlaiRunLineMarkerContributor : RunLineMarkerContributor() {
     override fun getInfo(element: PsiElement): Info? {
         val file = element.containingFile ?: return null
-        if (!isPipelineFileName(file.name)) {
+        if (!PipelineFileNames.isPipelineFileName(file.name)) {
             return null
         }
         // Only leaf elements (no children) and only the absolute first one

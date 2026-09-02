@@ -1,6 +1,4 @@
-package me.drew.flai.ui.visual
-
-import me.drew.flai.domain.model.*
+package me.drew.flai.domain.model
 
 fun Gate.inputPorts(): List<String> = when (this) {
     is InputGate -> emptyList()

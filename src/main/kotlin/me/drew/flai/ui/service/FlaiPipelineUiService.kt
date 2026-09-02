@@ -9,22 +9,29 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.vfs.VirtualFile
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.update
 import me.drew.flai.domain.model.InputGate
 import me.drew.flai.domain.model.PipelineId
 import me.drew.flai.domain.model.TraceStatus
 import me.drew.flai.domain.service.ExecutionEvent
+import me.drew.flai.domain.service.PipelineValidator
 import me.drew.flai.infrastructure.credential.PasswordSafeCredentialResolver
 import me.drew.flai.infrastructure.executor.*
+import me.drew.flai.infrastructure.layout.FileLayoutStore
+import me.drew.flai.infrastructure.layout.LayoutSidecarLocator
 import me.drew.flai.infrastructure.llm.HttpLlmClient
-import me.drew.flai.infrastructure.pipeline.PipelineValidator
+import me.drew.flai.infrastructure.pipeline.PipelineFileNames
 import me.drew.flai.infrastructure.pipeline.YamlPipelineParser
 import me.drew.flai.infrastructure.pipeline.YamlPipelineRepository
-import me.drew.flai.infrastructure.pipeline.isPipelineFileName
+import me.drew.flai.infrastructure.pipeline.YamlPipelineSerializer
+import me.drew.flai.infrastructure.preferences.VisualEditorPreferences
 import me.drew.flai.infrastructure.template.SimpleTemplateRenderer
 import me.drew.flai.infrastructure.tool.DefaultToolRegistry
 import me.drew.flai.ui.model.*
@@ -168,13 +175,31 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         _selectedPipeline.value = pipeline
     }
 
+    /**
+     * Creates the model ↔ document sync coordinator for one visual editor of [file].
+     * The coordinator is disposed together with [parent].
+     */
+    fun createDocumentSync(file: VirtualFile, parent: Disposable): VisualPipelineDocumentSync {
+        val sync = VisualPipelineDocumentSync(
+            project = project,
+            file = file,
+            document = FileDocumentManager.getInstance().getDocument(file),
+            parser = parser,
+            serializer = YamlPipelineSerializer(),
+            validator = validator,
+            layoutStore = FileLayoutStore(LayoutSidecarLocator.sidecarFor(project, file)),
+            preferences = VisualEditorPreferences(project),
+        )
+        Disposer.register(parent, sync)
+        return sync
+    }
+
     fun run(pipeline: UiPipeline, inputs: Map<String, String>) {
-        if (_executionState.value is ExecutionUiState.Running) {
+        if (!claimRunning()) {
             return
         }
         _selectedPipeline.value = pipeline
         _logRows.value = emptyList()
-        _executionState.value = ExecutionUiState.Running
 
         runningJob = serviceScope.launch {
             runUseCase.invoke(pipeline.id, inputs)
@@ -184,6 +209,19 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
                     _executionState.value = ExecutionUiState.Failed(message)
                 }
                 .collect { event -> handleEvent(event) }
+        }
+    }
+
+    /** Atomically moves the execution state to Running; false when a run is already in progress. */
+    private fun claimRunning(): Boolean {
+        while (true) {
+            val current = _executionState.value
+            if (current is ExecutionUiState.Running) {
+                return false
+            }
+            if (_executionState.compareAndSet(current, ExecutionUiState.Running)) {
+                return true
+            }
         }
     }
 
@@ -201,8 +239,12 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
             pipeline ?: return@launch
 
             // Ensure it's in the list
-            if (_pipelines.value.none { it.id == pipeline.id }) {
-                _pipelines.value = _pipelines.value + pipeline
+            _pipelines.update { current ->
+                if (current.any { it.id == pipeline.id }) {
+                    current
+                } else {
+                    current + pipeline
+                }
             }
 
             val inputs = mergeInputs(pipeline.inputSpecs, getSavedInputValues(pipeline.id))
@@ -274,7 +316,7 @@ class FlaiPipelineUiService(private val project: Project) : Disposable {
         if (!dir.exists()) {
             return@withContext emptyList()
         }
-        val files = dir.listFiles { file -> file.isFile && isPipelineFileName(file.name) }
+        val files = dir.listFiles { file -> file.isFile && PipelineFileNames.isPipelineFileName(file.name) }
             ?: return@withContext emptyList()
         LOG.info("Flai: found ${files.size} pipeline file(s) in ${dir.absolutePath}")
         files.mapNotNull { file ->

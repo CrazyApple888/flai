@@ -1,7 +1,8 @@
 package me.drew.flai.ui.visual
 
 import me.drew.flai.domain.model.*
-import org.junit.Assert.*
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VisualPipelineValidatorTest {
@@ -30,230 +31,25 @@ class VisualPipelineValidatorTest {
         return VisualPipelineModel.fromPipeline(pipeline)
     }
 
-    private fun makeNoEntryModel(): VisualPipelineModel {
-        // Build a model with no nodes so entryNodeSeq is -1
-        val model = VisualPipelineModel()
-        // Don't add any nodes — entryNodeSeq defaults to -1
-        return model
-    }
-
     @Test
     fun `valid model produces empty error list`() {
-        val model = makeValidModel()
-        val result = VisualPipelineValidator.validate(model)
+        val result = VisualPipelineValidator.validate(makeValidModel())
         assertTrue(result.isValid)
         assertTrue(result.errors.isEmpty())
     }
 
     @Test
     fun `missing pipeline id produces error`() {
-        val model = makeEmptyIdModel()
-        val result = VisualPipelineValidator.validate(model)
+        val result = VisualPipelineValidator.validate(makeEmptyIdModel())
         assertFalse(result.isValid)
         assertTrue(result.errors.any { it.field == "id" && it.gateId == "(pipeline)" })
     }
 
     @Test
     fun `missing entry gate produces error`() {
-        val model = makeNoEntryModel()
-        val result = VisualPipelineValidator.validate(model)
+        val result = VisualPipelineValidator.validate(VisualPipelineModel())
         assertFalse(result.isValid)
         assertTrue(result.errors.any { it.field == "entry" && it.gateId == "(pipeline)" })
-    }
-
-    @Test
-    fun `LlmGate missing promptTemplate produces error`() {
-        val model = makeValidModel()
-        val gate = LlmGate(
-            id = GateId("llm1"),
-            label = "LLM",
-            promptTemplate = "",
-            endpointConfig = LlmEndpointConfig("https://url", "cred", "model"),
-        )
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "llm1" && it.field == "promptTemplate" })
-    }
-
-    @Test
-    fun `LlmGate missing url produces error`() {
-        val model = makeValidModel()
-        val gate = LlmGate(
-            id = GateId("llm1"),
-            label = "LLM",
-            promptTemplate = "Hello",
-            endpointConfig = LlmEndpointConfig("", "cred", "model"),
-        )
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "llm1" && it.field == "endpointConfig.url" })
-    }
-
-    @Test
-    fun `LlmGate missing credentialId produces error`() {
-        val model = makeValidModel()
-        val gate = LlmGate(
-            id = GateId("llm1"),
-            label = "LLM",
-            promptTemplate = "Hello",
-            endpointConfig = LlmEndpointConfig("https://url", "", "model"),
-        )
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "llm1" && it.field == "endpointConfig.credentialId" })
-    }
-
-    @Test
-    fun `LlmGate missing model produces error`() {
-        val model = makeValidModel()
-        val gate = LlmGate(
-            id = GateId("llm1"),
-            label = "LLM",
-            promptTemplate = "Hello",
-            endpointConfig = LlmEndpointConfig("https://url", "cred", ""),
-        )
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "llm1" && it.field == "endpointConfig.model" })
-    }
-
-    @Test
-    fun `LogicGate missing defaultPort produces error`() {
-        val model = makeValidModel()
-        val gate = LogicGate(
-            id = GateId("logic1"),
-            label = "Logic",
-            branches = listOf(Branch("yes", BranchCondition.Always)),
-            defaultPort = null,
-        )
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "logic1" && it.field == "defaultPort" })
-    }
-
-    @Test
-    fun `LogicGate branch with empty port produces error`() {
-        val model = makeValidModel()
-        val gate = LogicGate(
-            id = GateId("logic1"),
-            label = "Logic",
-            branches = listOf(Branch("", BranchCondition.Always)),
-            defaultPort = "default",
-        )
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "logic1" && it.field == "branch.port" })
-    }
-
-    @Test
-    fun `ToolGate missing toolName produces error`() {
-        val model = makeValidModel()
-        val gate = ToolGate(id = GateId("tool1"), label = "Tool", toolName = "")
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "tool1" && it.field == "toolName" })
-    }
-
-    @Test
-    fun `BashGate missing command produces error`() {
-        val model = makeValidModel()
-        val gate = BashGate(id = GateId("bash1"), label = "Bash", command = "")
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "bash1" && it.field == "command" })
-    }
-
-    @Test
-    fun `BashGate invalid timeout produces error`() {
-        val model = makeValidModel()
-        val gate = BashGate(id = GateId("bash1"), label = "Bash", command = "printf hello", timeoutSeconds = 0)
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "bash1" && it.field == "timeoutSeconds" })
-    }
-
-    @Test
-    fun `ReadFileGate missing path produces error`() {
-        val model = makeValidModel()
-        val gate = ReadFileGate(id = GateId("read1"), label = "Read", path = "", outputKey = "content")
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "read1" && it.field == "path" })
-    }
-
-    @Test
-    fun `ReadFileGate missing outputKey produces error`() {
-        val model = makeValidModel()
-        val gate = ReadFileGate(id = GateId("read1"), label = "Read", path = "/file.txt", outputKey = "")
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "read1" && it.field == "outputKey" })
-    }
-
-    @Test
-    fun `WriteFileGate missing path produces error`() {
-        val model = makeValidModel()
-        val gate = WriteFileGate(id = GateId("write1"), label = "Write", path = "", contentKey = "content")
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "write1" && it.field == "path" })
-    }
-
-    @Test
-    fun `WriteFileGate missing contentKey produces error`() {
-        val model = makeValidModel()
-        val gate = WriteFileGate(id = GateId("write1"), label = "Write", path = "/out.txt", contentKey = "")
-        model.addNode(gate, 100, 0)
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.gateId == "write1" && it.field == "contentKey" })
-    }
-
-    @Test
-    fun `EC-10 edge referencing non-existent gate produces error`() {
-        val model = makeValidModel()
-        val inputNode = model.nodes[0]
-        // Add an edge via addEdge to a nonexistent seq
-        model.addEdge(VisualEdge(fromSeq = inputNode.nodeSeq, fromPort = "out", toSeq = 9999))
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.field == "to" })
-    }
-
-    @Test
-    fun `EC-11 edge with invalid fromPort produces error`() {
-        val model = makeValidModel()
-        val inputNode = model.nodes[0]
-        val outputGate = OutputGate(id = GateId("end"), label = "End")
-        val outputNode = model.addNode(outputGate, 200, 0)
-        // InputGate output ports = ["out"], so "nonexistent" is invalid
-        model.addEdge(VisualEdge(fromSeq = inputNode.nodeSeq, fromPort = "nonexistent", toSeq = outputNode.nodeSeq))
-        val result = VisualPipelineValidator.validate(model)
-        assertFalse(result.isValid)
-        assertTrue(result.errors.any { it.field == "fromPort" && it.gateId == "start" })
-    }
-
-    @Test
-    fun `valid edge with correct fromPort produces no error`() {
-        val model = makeValidModel()
-        val inputNode = model.nodes[0]
-        val outputGate = OutputGate(id = GateId("end"), label = "End")
-        val outputNode = model.addNode(outputGate, 200, 0)
-        model.addEdge(VisualEdge(fromSeq = inputNode.nodeSeq, fromPort = "out", toSeq = outputNode.nodeSeq))
-        val result = VisualPipelineValidator.validate(model)
-        assertTrue(result.isValid)
     }
 
     @Test
@@ -268,9 +64,65 @@ class VisualPipelineValidatorTest {
     }
 
     @Test
+    fun `blank gate id is reported against the node sequence`() {
+        val model = VisualPipelineModel()
+        model.setPipelineMetadata("p", "P")
+        val node = model.addNode(InputGate(id = GateId(""), label = "a"), 0, 0)
+        val result = VisualPipelineValidator.validateStructure(model)
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.gateId == "(gate #${node.nodeSeq})" && it.field == "id" })
+    }
+
+    @Test
+    fun `edge referencing non-existent node sequence produces error`() {
+        val model = makeValidModel()
+        val inputNode = model.nodes[0]
+        model.addEdge(VisualEdge(fromSeq = inputNode.nodeSeq, fromPort = "out", toSeq = 9999))
+        val result = VisualPipelineValidator.validateStructure(model)
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.gateId == "(edge)" && it.field == "to" })
+    }
+
+    @Test
+    fun `valid edge with correct fromPort produces no error`() {
+        val model = makeValidModel()
+        val inputNode = model.nodes[0]
+        val outputNode = model.addNode(OutputGate(id = GateId("end"), label = "End"), 200, 0)
+        model.addEdge(VisualEdge(fromSeq = inputNode.nodeSeq, fromPort = "out", toSeq = outputNode.nodeSeq))
+        assertTrue(VisualPipelineValidator.validate(model).isValid)
+    }
+
+    @Test
+    fun `validate surfaces core issues through the model path`() {
+        val model = makeValidModel()
+        model.addNode(
+            LlmGate(
+                id = GateId("llm1"),
+                label = "LLM",
+                promptTemplate = "Hello",
+                endpointConfig = LlmEndpointConfig("", "cred", "model"),
+            ),
+            100, 0,
+        )
+        val result = VisualPipelineValidator.validate(model)
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.gateId == "llm1" && it.field == "endpointConfig.url" })
+    }
+
+    @Test
+    fun `validate surfaces invalid fromPort from core validator`() {
+        val model = makeValidModel()
+        val inputNode = model.nodes[0]
+        val outputNode = model.addNode(OutputGate(id = GateId("end"), label = "End"), 200, 0)
+        model.addEdge(VisualEdge(fromSeq = inputNode.nodeSeq, fromPort = "nonexistent", toSeq = outputNode.nodeSeq))
+        val result = VisualPipelineValidator.validate(model)
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.field == "fromPort" && it.gateId == "start" })
+    }
+
+    @Test
     fun `validateStructure passes for valid model`() {
-        val result = VisualPipelineValidator.validateStructure(makeValidModel())
-        assertTrue(result.isValid)
+        assertTrue(VisualPipelineValidator.validateStructure(makeValidModel()).isValid)
     }
 
     @Test

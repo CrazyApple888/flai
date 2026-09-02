@@ -98,7 +98,7 @@ class VisualPipelineModel {
             return false
         }
         val node = _nodes[idx]
-        val rebuiltGate = rebuildGateWithId(node.gate, GateId(newId))
+        val rebuiltGate = node.gate.withId(GateId(newId))
         _nodes[idx] = node.copy(gateId = newId, gate = rebuiltGate)
         markDirty()
         return true
@@ -224,17 +224,6 @@ class VisualPipelineModel {
             edges = pipelineEdges,
             entryGateId = entryGateId,
         )
-    }
-
-    private fun rebuildGateWithId(gate: Gate, newId: GateId): Gate = when (gate) {
-        is InputGate -> gate.copy(id = newId)
-        is OutputGate -> gate.copy(id = newId)
-        is LlmGate -> gate.copy(id = newId)
-        is LogicGate -> gate.copy(id = newId)
-        is ToolGate -> gate.copy(id = newId)
-        is BashGate -> gate.copy(id = newId)
-        is ReadFileGate -> gate.copy(id = newId)
-        is WriteFileGate -> gate.copy(id = newId)
     }
 
     companion object {

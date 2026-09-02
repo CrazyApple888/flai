@@ -22,7 +22,6 @@ data class SectionResult(
 class GatePropertySections(
     private val toolRegistry: DefaultToolRegistry,
     private val onGateUpdated: (nodeSeq: Int, gate: Gate) -> Unit,
-    private val onLlmToolsUpdated: () -> Unit = {},
     private val onRepaint: () -> Unit,
     private val onRefreshPanel: () -> Unit,
     private val getGate: (nodeSeq: Int) -> Gate? = { null },
@@ -43,13 +42,13 @@ class GatePropertySections(
             onRepaint()
         }))
         basicCard.add(labeledRow("Label", buildTextField(node.gate.label, editableList) { newLabel ->
-            onGateUpdated(nodeSeq, rebuildWithLabel(node.gate, newLabel))
+            onGateUpdated(nodeSeq, node.gate.withLabel(newLabel))
         }))
         val faultTolerantCheck = JCheckBox().apply {
             isSelected = node.gate.faultTolerant
             addActionListener {
                 val fresh = freshGate(nodeSeq, node.gate)
-                onGateUpdated(nodeSeq, rebuildWithFaultTolerant(fresh, isSelected))
+                onGateUpdated(nodeSeq, fresh.withFaultTolerant(isSelected))
             }
         }
         editableList.add(faultTolerantCheck)
@@ -228,7 +227,6 @@ class GatePropertySections(
                         current.tools.filterNot { it == name }
                     }
                     onGateUpdated(nodeSeq, current.copy(tools = updatedTools))
-                    onLlmToolsUpdated()
                 }
             }
             editableList.add(checkbox)
@@ -863,25 +861,5 @@ class GatePropertySections(
         }
     }
 
-    private fun rebuildWithLabel(gate: Gate, newLabel: String): Gate = when (gate) {
-        is InputGate -> gate.copy(label = newLabel)
-        is OutputGate -> gate.copy(label = newLabel)
-        is LlmGate -> gate.copy(label = newLabel)
-        is LogicGate -> gate.copy(label = newLabel)
-        is ToolGate -> gate.copy(label = newLabel)
-        is BashGate -> gate.copy(label = newLabel)
-        is ReadFileGate -> gate.copy(label = newLabel)
-        is WriteFileGate -> gate.copy(label = newLabel)
-    }
 
-    private fun rebuildWithFaultTolerant(gate: Gate, value: Boolean): Gate = when (gate) {
-        is InputGate -> gate.copy(faultTolerant = value)
-        is OutputGate -> gate.copy(faultTolerant = value)
-        is LlmGate -> gate.copy(faultTolerant = value)
-        is LogicGate -> gate.copy(faultTolerant = value)
-        is ToolGate -> gate.copy(faultTolerant = value)
-        is BashGate -> gate.copy(faultTolerant = value)
-        is ReadFileGate -> gate.copy(faultTolerant = value)
-        is WriteFileGate -> gate.copy(faultTolerant = value)
-    }
 }

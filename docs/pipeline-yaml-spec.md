@@ -372,6 +372,21 @@ If `outputMapping` is empty, all tool outputs are written directly to context us
 
 ---
 
+## Validation
+
+Every pipeline is checked by the core `PipelineValidator` before it runs (IDE, CLI) and before the visual editor writes it. All problems are reported together. Rules:
+
+- `id` is non-blank; `entry` names an existing gate.
+- Gate keys match `[A-Za-z0-9_.-]+`.
+- `llm`: non-blank `promptTemplate`, `endpoint.url`, `endpoint.model`; `credentialId` or `apiKeyVar` set; `maxToolRounds > 0`; tool names non-blank and unique.
+- `logic`: non-blank `defaultPort`; every branch has a non-blank `port`.
+- `tool`: non-blank `toolName`.
+- `bash`: non-blank `command` and `workingDirectory`; `timeoutSeconds > 0`; no blank `environment` keys or `outputMapping` keys/values.
+- `read-file`: non-blank `path` and `outputKey`. `write-file`: non-blank `path` and `contentKey`.
+- Edges reference existing gates; `fromPort` is one of the source gate's output ports (`out`, or branch ports plus `defaultPort` for `logic`); `toPort` is `in`.
+- At most one outgoing edge per `(gate, fromPort)`.
+- The graph is acyclic.
+
 ## Execution model
 
 1. Pipeline starts at `entry` gate.

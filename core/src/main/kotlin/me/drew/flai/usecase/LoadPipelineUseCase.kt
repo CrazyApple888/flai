@@ -3,7 +3,7 @@ package me.drew.flai.usecase
 import me.drew.flai.domain.model.Pipeline
 import me.drew.flai.domain.model.PipelineId
 import me.drew.flai.domain.port.PipelineRepository
-import me.drew.flai.infrastructure.pipeline.PipelineValidator
+import me.drew.flai.domain.service.PipelineValidator
 
 class LoadPipelineUseCase(
     private val repository: PipelineRepository,

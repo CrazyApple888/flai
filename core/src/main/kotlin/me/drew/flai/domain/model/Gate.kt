@@ -7,6 +7,10 @@ sealed class Gate {
     abstract val id: GateId
     abstract val label: String
     abstract val faultTolerant: Boolean
+
+    abstract fun withId(id: GateId): Gate
+    abstract fun withLabel(label: String): Gate
+    abstract fun withFaultTolerant(faultTolerant: Boolean): Gate
 }
 
 data class InputGate(
@@ -14,7 +18,11 @@ data class InputGate(
     override val label: String,
     val inputSchema: List<InputField> = emptyList(),
     override val faultTolerant: Boolean = false,
-) : Gate()
+) : Gate() {
+    override fun withId(id: GateId): Gate = copy(id = id)
+    override fun withLabel(label: String): Gate = copy(label = label)
+    override fun withFaultTolerant(faultTolerant: Boolean): Gate = copy(faultTolerant = faultTolerant)
+}
 
 data class InputField(
     val name: String,
@@ -30,7 +38,11 @@ data class OutputGate(
     override val label: String,
     val outputMapping: Map<String, String> = emptyMap(),
     override val faultTolerant: Boolean = false,
-) : Gate()
+) : Gate() {
+    override fun withId(id: GateId): Gate = copy(id = id)
+    override fun withLabel(label: String): Gate = copy(label = label)
+    override fun withFaultTolerant(faultTolerant: Boolean): Gate = copy(faultTolerant = faultTolerant)
+}
 
 data class LlmGate(
     override val id: GateId,
@@ -43,7 +55,11 @@ data class LlmGate(
     val tools: List<String> = emptyList(),
     val maxToolRounds: Int = 8,
     override val faultTolerant: Boolean = false,
-) : Gate()
+) : Gate() {
+    override fun withId(id: GateId): Gate = copy(id = id)
+    override fun withLabel(label: String): Gate = copy(label = label)
+    override fun withFaultTolerant(faultTolerant: Boolean): Gate = copy(faultTolerant = faultTolerant)
+}
 
 data class LlmEndpointConfig(
     val url: String,
@@ -62,7 +78,11 @@ data class LogicGate(
     val branches: List<Branch>,
     val defaultPort: String? = "default",
     override val faultTolerant: Boolean = false,
-) : Gate()
+) : Gate() {
+    override fun withId(id: GateId): Gate = copy(id = id)
+    override fun withLabel(label: String): Gate = copy(label = label)
+    override fun withFaultTolerant(faultTolerant: Boolean): Gate = copy(faultTolerant = faultTolerant)
+}
 
 data class Branch(
     val port: String,
@@ -93,7 +113,11 @@ data class ToolGate(
     val inputMapping: Map<String, String> = emptyMap(),
     val outputMapping: Map<String, String> = emptyMap(),
     override val faultTolerant: Boolean = false,
-) : Gate()
+) : Gate() {
+    override fun withId(id: GateId): Gate = copy(id = id)
+    override fun withLabel(label: String): Gate = copy(label = label)
+    override fun withFaultTolerant(faultTolerant: Boolean): Gate = copy(faultTolerant = faultTolerant)
+}
 
 data class BashGate(
     override val id: GateId,
@@ -105,7 +129,11 @@ data class BashGate(
     val failOnNonZeroExit: Boolean = true,
     val outputMapping: Map<String, String> = emptyMap(),
     override val faultTolerant: Boolean = false,
-) : Gate()
+) : Gate() {
+    override fun withId(id: GateId): Gate = copy(id = id)
+    override fun withLabel(label: String): Gate = copy(label = label)
+    override fun withFaultTolerant(faultTolerant: Boolean): Gate = copy(faultTolerant = faultTolerant)
+}
 
 enum class WriteMode { OVERWRITE, APPEND, FAIL_IF_EXISTS }
 
@@ -115,7 +143,11 @@ data class ReadFileGate(
     val path: String,
     val outputKey: String = "content",
     override val faultTolerant: Boolean = false,
-) : Gate()
+) : Gate() {
+    override fun withId(id: GateId): Gate = copy(id = id)
+    override fun withLabel(label: String): Gate = copy(label = label)
+    override fun withFaultTolerant(faultTolerant: Boolean): Gate = copy(faultTolerant = faultTolerant)
+}
 
 data class WriteFileGate(
     override val id: GateId,
@@ -124,4 +156,8 @@ data class WriteFileGate(
     val contentKey: String,
     val mode: WriteMode = WriteMode.OVERWRITE,
     override val faultTolerant: Boolean = false,
-) : Gate()
+) : Gate() {
+    override fun withId(id: GateId): Gate = copy(id = id)
+    override fun withLabel(label: String): Gate = copy(label = label)
+    override fun withFaultTolerant(faultTolerant: Boolean): Gate = copy(faultTolerant = faultTolerant)
+}

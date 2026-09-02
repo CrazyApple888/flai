@@ -4,6 +4,8 @@ import com.intellij.ui.JBColor
 import me.drew.flai.domain.model.Gate
 import me.drew.flai.domain.model.LlmGate
 import me.drew.flai.domain.model.LogicGate
+import me.drew.flai.domain.model.inputPorts
+import me.drew.flai.domain.model.outputPorts
 import me.drew.flai.ui.model.GateStatus
 import java.awt.*
 import java.awt.geom.GeneralPath

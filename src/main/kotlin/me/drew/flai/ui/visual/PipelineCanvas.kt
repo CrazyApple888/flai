@@ -656,6 +656,14 @@ class PipelineCanvas(private val model: VisualPipelineModel) : JPanel() {
 
     fun getSelectedNode(): VisualNode? = model.nodeBySeq(selectedNodeSeq)
 
+    /** Drops node and edge selection, e.g. after the model was replaced from the document. */
+    fun clearSelection() {
+        selectedNodeSeq = -1
+        selectedEdge = null
+        _listener?.onNodeSelected(null)
+        repaint()
+    }
+
     fun getViewTransform(): java.awt.geom.AffineTransform = AffineTransform(transform)
 
     fun zoomIn() {
