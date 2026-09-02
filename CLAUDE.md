@@ -42,7 +42,15 @@ Three Gradle modules:
 
 ## Architecture
 
-Hexagonal architecture (ports & adapters). Layers:
+Clean architecture / hexagonal (ports & adapters). Non-negotiable:
+
+- **Dependency rule** — dependencies point inwards only: `domain` ← `usecase` ← `infrastructure`/`ui`/`cli`. Inner layers never import outer ones.
+- `domain/` stays pure Kotlin: no IntelliJ, no framework, no IO, no Swing, no coroutine dispatchers.
+- Outer layers talk to inner ones only through `domain/port/` interfaces; every IO or platform dependency enters as an injected port implementation.
+- `usecase/` is thin orchestration — no business rules inlined there, no direct IO.
+- `ui/`, `cli/` and IntelliJ adapters are delivery mechanisms: wiring and presentation only, never domain logic.
+
+Layers:
 
 **`core/.../domain/`** — pure Kotlin, no IntelliJ deps
 - `model/` — `Pipeline`, `Gate` (sealed: Input/Output/Llm/Logic/Tool), `ExecutionContext`, `GateResult`
@@ -99,6 +107,7 @@ Docs live in `docs/`. After any task that adds or changes features, gates, tools
 
 ## Code style
 
+- **Full words in every name** — no abbreviations, no truncations, no single letters. Write `button` not `btn`, `configuration` not `cfg`, `index` not `idx`, `message` not `msg`, `repository` not `repo`, `pipelineExecutor` not `pe`. Applies to classes, functions, properties, parameters, locals, loop variables, test names, file names, YAML keys and UI component names alike. The only exceptions: established domain acronyms and prefixes already used across the codebase (`id`, `url`, `yaml`, `llm`, `ui`, `api`, `psi`, `vfs`, `cli`, `env`) and the implicit `it` in short lambdas. Existing names are not renamed retroactively; the rule binds new code.
 - Always use braces for `if`/`else`/`for`/`while` bodies, even single-line; every statement inside braces must be on its own line
 - Never use semicolons (`;`) to separate statements — use newlines instead
 - No unused imports, fields, or functions — remove dead code immediately
