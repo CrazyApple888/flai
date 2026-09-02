@@ -63,6 +63,33 @@ object VisualPipelineValidator {
         return ValidationResult(errors)
     }
 
+    /**
+     * Structural checks only — enough for the YAML to round-trip through the
+     * parser: pipeline id, existing entry node, non-blank unique gate ids.
+     * Used by the editor's auto-sync; semantic gate checks stay in [validate].
+     */
+    fun validateStructure(model: VisualPipelineModel): ValidationResult {
+        val errors = mutableListOf<ValidationError>()
+        if (model.pipelineId.isBlank()) {
+            errors.add(ValidationError("(pipeline)", "id", "Pipeline id is required"))
+        }
+        if (model.entryNodeSeq == -1 || model.nodeBySeq(model.entryNodeSeq) == null) {
+            errors.add(ValidationError("(pipeline)", "entry", "Pipeline entry gate is required and must exist"))
+        }
+        val seen = mutableSetOf<String>()
+        for (node in model.nodes) {
+            val gateId = node.gateId
+            if (gateId.isBlank()) {
+                errors.add(ValidationError(gateId, "id", "Gate id is required"))
+                continue
+            }
+            if (!seen.add(gateId)) {
+                errors.add(ValidationError(gateId, "id", "Gate id '$gateId' is used more than once"))
+            }
+        }
+        return ValidationResult(errors)
+    }
+
     private fun validateGate(gate: Gate, errors: MutableList<ValidationError>) {
         val id = gate.id.value
         when (gate) {

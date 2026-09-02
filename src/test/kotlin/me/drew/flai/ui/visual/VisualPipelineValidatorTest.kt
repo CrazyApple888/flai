@@ -255,4 +255,54 @@ class VisualPipelineValidatorTest {
         val result = VisualPipelineValidator.validate(model)
         assertTrue(result.isValid)
     }
+
+    @Test
+    fun `validateStructure passes for valid model`() {
+        val result = VisualPipelineValidator.validateStructure(makeValidModel())
+        assertTrue(result.isValid)
+    }
+
+    @Test
+    fun `validateStructure fails on empty pipeline id`() {
+        val result = VisualPipelineValidator.validateStructure(makeEmptyIdModel())
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.field == "id" && it.gateId == "(pipeline)" })
+    }
+
+    @Test
+    fun `validateStructure fails on missing entry`() {
+        val model = VisualPipelineModel()
+        model.setPipelineMetadata("p", "P")
+        val result = VisualPipelineValidator.validateStructure(model)
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.field == "entry" })
+    }
+
+    @Test
+    fun `validateStructure fails on duplicate gate ids`() {
+        val model = VisualPipelineModel()
+        model.setPipelineMetadata("p", "P")
+        model.addNode(InputGate(id = GateId("dup"), label = "a"), 0, 0)
+        model.addNode(OutputGate(id = GateId("dup"), label = "b"), 0, 0)
+        val result = VisualPipelineValidator.validateStructure(model)
+        assertFalse(result.isValid)
+        assertTrue(result.errors.any { it.gateId == "dup" && it.field == "id" })
+    }
+
+    @Test
+    fun `validateStructure ignores semantic gate errors`() {
+        val model = VisualPipelineModel()
+        model.setPipelineMetadata("p", "P")
+        model.addNode(
+            LlmGate(
+                id = GateId("llm1"),
+                label = "LLM",
+                promptTemplate = "",
+                endpointConfig = LlmEndpointConfig(url = "", credentialId = "", model = ""),
+            ),
+            0, 0,
+        )
+        assertTrue(VisualPipelineValidator.validateStructure(model).isValid)
+        assertFalse(VisualPipelineValidator.validate(model).isValid)
+    }
 }
